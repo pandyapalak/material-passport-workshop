@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Material Passport — Drag & Assign Workshop</title>
+<style>
+  :root{
+    --bg:#ffffff; --panel:#ffffff; --muted:#f3f4f6; --card:#ffffff;
+    --ink:#111827; --ink-dim:#6b7280;
+    --accent:#2563eb; --accent-2:#10b981;
+    --danger:#b91c1c;
+    --border:#e5e7eb;
+    --shadow:0 6px 20px rgba(17,24,39,.08); --radius:16px;
+  }
+  html,body{height:100%}
+  body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;background:var(--bg);color:var(--ink)}
+  *{box-sizing:border-box}
+
+  /* TWO main columns (tiles | buckets) */
+  .app{display:grid;grid-template-columns:1fr 460px;gap:14px;padding:16px}
+
+  /* Top bar */
+  header.topbar{
+    grid-column:1/-1;display:flex;gap:12px;align-items:center;justify-content:space-between;
+    padding:10px 14px;background:#fff;border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)
+  }
+  h1{font-size:18px;margin:0;letter-spacing:.3px;font-weight:700}
+  .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .status{font-size:12px;color:#374151}
+  input[type="text"],input[type="email"]{
+    background:var(--muted);color:var(--ink);border:1px solid var(--border);border-radius:12px;padding:10px 12px
+  }
+  input::placeholder{color:var(--ink-dim)}
+  button{
+    border:1px solid var(--border);background:linear-gradient(180deg,#fff,#f8fafc);
+    color:var(--ink);padding:10px 14px;border-radius:12px;cursor:pointer;box-shadow:var(--shadow);font-weight:600
+  }
+  button.primary{background:linear-gradient(180deg,#2563eb,#1d4ed8);border-color:rgba(37,99,235,.4);color:#fff}
+  button.ghost{background:transparent;border-color:var(--border)}
+  button.small{padding:6px 10px;font-weight:600}
+  .notice{font-size:12px;color:var(--ink-dim)}
+
+  /* Panels */
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:12px;overflow:hidden}
+
+  /* Left: Tiles (Main -> Sub) */
+  .pool{display:grid;grid-template-rows:auto 1fr;gap:8px}
+  .tiles{position:relative;overflow:auto;height:calc(100vh - 210px);padding:6px;display:grid;grid-auto-rows:min-content;gap:12px}
+  .mainBox{border:1px solid var(--border);border-radius:14px;overflow:hidden;background:#fff}
+  .mainHeader{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-weight:700;font-size:13px}
+  .mainCount{font-size:12px;color:var(--ink-dim)}
+  .mainBody{padding:10px;display:grid;grid-auto-rows:min-content;gap:10px}
+
+  /* Palette per Main (header & sub shades) */
+  .c0 .mainHeader{background:#eef2ff;border-color:#c7d2fe}
+  .c0 .subBox{background:#f6f7ff;border:1px solid #e4e7ff}
+  .c1 .mainHeader{background:#ecfeff;border-color:#a5f3fc}
+  .c1 .subBox{background:#f2ffff;border:1px solid #d2fbff}
+  .c2 .mainHeader{background:#ecfdf5;border-color:#a7f3d0}
+  .c2 .subBox{background:#f3fef9;border:1px solid #cff8e4}
+  .c3 .mainHeader{background:#fff7ed;border-color:#fed7aa}
+  .c3 .subBox{background:#fffaf3;border:1px solid #ffe6c7}
+  .c4 .mainHeader{background:#fef3c7;border-color:#fde68a}
+  .c4 .subBox{background:#fff7d9;border:1px solid #fee9a9}
+  .c5 .mainHeader{background:#fae8ff;border-color:#e9d5ff}
+  .c5 .subBox{background:#fdf0ff;border:1px solid #f1ddff}
+  .c6 .mainHeader{background:#fee2e2;border-color:#fecaca}
+  .c6 .subBox{background:#fff1f1;border:1px solid #ffdddd}
+  .c7 .mainHeader{background:#e0e7ff;border-color:#c7d2fe}
+  .c7 .subBox{background:#ecf0ff;border:1px solid #dbe2ff}
+
+  .subBox{border-radius:12px;padding:8px}
+  .subHeader{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:4px 6px 8px 6px}
+  .subTitle{font-weight:700;font-size:12px}
+  .subCount{font-size:12px;color:var(--ink-dim)}
+  .subBody{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+
+  .tile{background:#fff;border:1px solid var(--border);border-radius:12px;padding:10px;cursor:grab;user-select:none;display:flex;flex-direction:column;gap:6px}
+  .tile.dragging{opacity:.6}
+  .tile .title{font-size:13px;font-weight:700;line-height:1.2}
+  .tile .meta{font-size:11px;color:var(--ink-dim)}
+  .tile.selected{outline:2px solid var(--accent);box-shadow:0 0 0 4px rgba(37,99,235,.15) inset}
+
+  /* Right: Buckets (Actors) */
+  .buckets{display:grid;grid-template-rows:auto auto 1fr;gap:10px}
+  .bucketAdd{display:flex;gap:8px}
+  .bucketAdd input{flex:1;background:var(--muted);border:1px solid var(--border);border-radius:10px;padding:8px 10px}
+  .bucketGridWrap{overflow:hidden}
+  .bucketGrid{display:grid;gap:8px;align-content:start;grid-template-columns:repeat(2, 1fr);} /* two per row */
+  /* row height set dynamically so all actors are visible */
+  .bucket{background:#fff;border:1px dashed var(--border);border-radius:14px;display:grid;grid-template-rows:auto 1fr;min-height:var(--row-height,90px);padding:8px}
+  .bucket header{display:flex;align-items:center;justify-content:space-between}
+  .bucket h2{margin:0;font-size:13px}
+  .bucket .count{font-size:12px;color:var(--ink-dim)}
+  .bucket .items{display:flex;flex-wrap:wrap;gap:6px;overflow:auto}
+  .bucket.dragover{border-color:var(--accent-2);background:rgba(16,185,129,.08)}
+  .tag{font-size:11px;padding:4px 8px;border-radius:999px;background:rgba(37,99,235,.10);border:1px solid rgba(37,99,235,.25)}
+  .exclude{border-color:#fecaca;background:#fff5f5}
+  .exclude h2{color:#b91c1c}
+
+  @media (max-width:1100px){
+    .app{grid-template-columns:1fr}
+    .tiles{height:auto;max-height:60vh}
+    .bucketGrid{grid-template-columns:1fr} /* on small screens fall back to one per row */
+  }
+
+  .doneMessage{
+    display:flex;align-items:center;justify-content:center;
+    height:calc(100vh - 210px);
+    font-size:20px;font-weight:800;letter-spacing:.2px;color:#065f46;
+    background:#ecfdf5;border:2px dashed #a7f3d0;border-radius:14px;
+  }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="row">
+    <h1>Material Passport — Drag & Assign</h1>
+    <span class="notice">Multi-select (Ctrl/⌘-click). Drag to assign. Click a Main header to collapse.</span>
+    <span id="status" class="status"></span>
+  </div>
+  <div class="row">
+    <input id="org" type="text" placeholder="Organization (optional)"/>
+    <input id="who" type="text" placeholder="Your name"/>
+    <input id="email" type="email" placeholder="Your email (optional)"/>
+    <button id="undoBtn" class="ghost">Undo</button>
+    <button id="checkBtn" class="ghost">Check Endpoint</button>
+    <button id="submitBtn" class="primary">Done & Submit</button>
+  </div>
+</header>
+
+<div class="app">
+  <!-- LEFT: tiles -->
+  <main class="panel pool">
+    <div class="tiles" id="tiles"></div>
+  </main>
+
+  <!-- RIGHT: buckets -->
+  <aside class="panel buckets">
+    <!-- special top bucket (full width) -->
+    <div class="bucket exclude" data-role="Don't need to include" style="grid-column:1 / -1;">
+      <header><h2>Don't need to include</h2><span class="count"></span></header>
+      <div class="items"></div>
+    </div>
+
+    <!-- add role -->
+    <div class="bucketAdd" style="grid-column:1 / -1;">
+      <input id="newRole" type="text" placeholder="Add an actor (e.g., Architect)"/>
+      <button id="addRoleBtn" class="small">Add</button>
+    </div>
+
+    <!-- roles grid: two per row -->
+    <div class="bucketGridWrap" style="grid-column:1 / -1;">
+      <div id="bucketGrid" class="bucketGrid"></div>
+    </div>
+  </aside>
+</div>
+
+<!-- Embedded CSV (EXACT). Using text/plain to avoid parser issues. -->
+<script id="embeddedCSV" type="text/plain">
+id ,title,main ,sub
+DP_001,Function,Material Identity and Properties,General  Information
+DP_002,Use,Material Identity and Properties,General  Information
+DP_003,Category,Material Identity and Properties,General  Information
+DP_004,Total Material Composition,Material Identity and Properties,Material Properties (Building Physics)
+DP_005,U-Value,Material Identity and Properties,Material Properties (Building Physics)
+DP_006,Thermal Conductivity (k-value),Material Identity and Properties,Material Properties (Building Physics)
+DP_007,Fire Resistance,Material Identity and Properties,Material Properties (Building Physics)
+DP_008,Water Tightness,Material Identity and Properties,Material Properties (Building Physics)
+DP_009,Thermal Resistence (R-value),Material Identity and Properties,Material Properties (Building Physics)
+DP_010,Acoustic Resistance,Material Identity and Properties,Material Properties (Building Physics)
+DP_011,Hygroscopicity,Material Identity and Properties,Material Properties (Building Physics)
+DP_012,Ventilation and Air Tightness,Material Identity and Properties,Material Properties (Building Physics)
+DP_013,Daylight and Illumination,Material Identity and Properties,Material Properties (Building Physics)
+DP_014,Coefficient of Thermal Expansion,Material Identity and Properties,Material Properties (Building Physics)
+DP_015,Density,Material Identity and Properties,Physical Properties
+DP_016,Weight,Material Identity and Properties,Physical Properties
+DP_017,Mass,Material Identity and Properties,Physical Properties
+DP_018,Area,Material Identity and Properties,Geometry & Dimensions
+DP_019,Volume,Material Identity and Properties,Geometry & Dimensions
+DP_020,Thickness,Material Identity and Properties,Geometry & Dimensions
+DP_021,Length,Material Identity and Properties,Geometry & Dimensions
+DP_022,Width,Material Identity and Properties,Geometry & Dimensions
+DP_023,Height,Material Identity and Properties,Geometry & Dimensions
+DP_024,Diameter,Material Identity and Properties,Geometry & Dimensions
+DP_025,Name,Material Identity and Properties,Identification
+DP_026,Image ,Material Identity and Properties,Identification
+DP_027,Colour,Material Identity and Properties,Identification
+DP_028,Material Surface,Material Identity and Properties,Identification
+DP_029,Transparency,Material Identity and Properties,Identification
+DP_030,Quantity,Material Identity and Properties,Identification
+DP_031,Drawings,Material Identity and Properties,Identification
+DP_032,QR Code,Material Identity and Properties,Identification
+DP_033,RFID Tag,Material Identity and Properties,Identification
+DP_034,Source of Material ,Material Identity and Properties,Feedstock Sources
+DP_035,Raw Material used,Material Identity and Properties,Feedstock Sources
+DP_036,Renewable / Non-renewable Content,Material Identity and Properties,Feedstock Sources
+DP_037,Reuse Potential,Circularity & End-of-Life,Reuse & Recyclable  Potential 
+DP_038,Mass of Reusable,Circularity & End-of-Life,Reuse & Recyclable  Potential 
+DP_039,Mass of Recyclable,Circularity & End-of-Life,Reuse & Recyclable  Potential 
+DP_040,Recycling Potential,Circularity & End-of-Life,Reuse & Recyclable  Potential 
+DP_041,Design for Disassembly,Circularity & End-of-Life,Design for Disassembly/ Deconstruction
+DP_042,Design for Adaptability,Circularity & End-of-Life,Design for Disassembly/ Deconstruction
+DP_043,Design for Circularity,Circularity & End-of-Life,Design for Disassembly/ Deconstruction
+DP_044,Type of connection,Circularity & End-of-Life,Disassembly Guide
+DP_045,Connected to,Circularity & End-of-Life,Disassembly Guide
+DP_046,Type of connection accessibility,Circularity & End-of-Life,Disassembly Guide
+DP_047,Material Crossing,Circularity & End-of-Life,Disassembly Guide
+DP_048,Type of form containment,Circularity & End-of-Life,Disassembly Guide
+DP_049,Disassembly Instructions,Circularity & End-of-Life,Disassembly Guide
+DP_050,Working space,Circularity & End-of-Life,Disassembly Guide
+DP_051,Disassembly tool,Circularity & End-of-Life,Disassembly Guide
+DP_052,Disassembly time,Circularity & End-of-Life,Disassembly Guide
+DP_053,Disassembly cost,Circularity & End-of-Life,Disassembly Guide
+DP_054,Disassembly revenue,Circularity & End-of-Life,Disassembly Guide
+DP_055,Disassembly energy consumption,Circularity & End-of-Life,Disassembly Guide
+DP_056,Disassembly Sequencing,Circularity & End-of-Life,Disassembly Guide
+DP_057,Disassembly Dependency,Circularity & End-of-Life,Disassembly Guide
+DP_058,End-of-Life,Circularity & End-of-Life,End-of-Life Scenario
+DP_059,Disposal Options,Circularity & End-of-Life,End-of-Life Scenario
+DP_060,Location ,Circularity & End-of-Life,End-of-Life Scenario
+DP_061,Decomposition / Dedaradation,Circularity & End-of-Life,End-of-Life Scenario
+DP_062,Availabbility in Future for reuse (time),Circularity & End-of-Life,End-of-Life Scenario
+DP_063,Additional Process before another lifecycle,Circularity & End-of-Life,Preprocessing
+DP_064,Costs of Recycling,Circularity & End-of-Life,Preprocessing
+DP_065,Quality checks before reusing or recycling,Circularity & End-of-Life,Preprocessing
+DP_066,GWP,Environmental Data,Environmental Impacts
+DP_067,AP,Environmental Data,Environmental Impacts
+DP_068,PEI,Environmental Data,Environmental Impacts
+DP_069,Energy Demand,Environmental Data,Environmental Impacts
+DP_070,GHG,Environmental Data,Environmental Impacts
+DP_071,Labels,Environmental Data,Sustainability & Eco Design
+DP_072,Certifications,Environmental Data,Sustainability & Eco Design
+DP_073,Social Information,Environmental Data,Sustainability & Eco Design
+DP_074,Actively Beneficial Functions,Environmental Data,Sustainability & Eco Design
+DP_075,Safety and Restrictions,Environmental Data,Sustainability & Eco Design
+DP_076,Building Identification,Building Level Data,Building Level Data
+DP_077,Building Name,Building Level Data,Building Level Data
+DP_078,Building Type,Building Level Data,Building Level Data
+DP_079,Building Location,Building Level Data,Building Level Data
+DP_080,Building Year,Building Level Data,Building Level Data
+DP_081,Building Permit Year,Building Level Data,Building Level Data
+DP_082,Owner / Administrator ,Building Level Data,Building Level Data
+DP_083,Gross Floor Area,Building Level Data,Building Level Data
+DP_084,Numbers of Floors,Building Level Data,Building Level Data
+DP_085,Digitisation Level,Building Level Data,Building Level Data
+DP_086,Compresssive Strength,Technical Data,Structural Property
+DP_087,Moment of Inertia,Technical Data,Structural Property
+DP_088,Modulus of Elasticity ,Technical Data,Structural Property
+DP_089,Resistance of deformation,Technical Data,Structural Property
+DP_090,Structural composition relationship,Technical Data,Structural Property
+DP_091,Charpy Value,Technical Data,Structural Property
+DP_092,Through Thickness Properties,Technical Data,Structural Property
+DP_093,Fatigue Properties,Technical Data,Structural Property
+DP_094,Poisson's Ratio,Technical Data,Structural Property
+DP_095,Design Analysis,Technical Data,Design Data
+DP_096,Retail price per unit,Technical Data,Economic Data
+DP_097,Manufacturing Cost,Technical Data,Economic Data
+DP_098,Lifespan,Technical Data,Performance
+DP_099,Durability,Technical Data,Performance
+DP_100,Reliability,Technical Data,Performance
+DP_101,Defects,Technical Data,Performance
+DP_102,Warranty,Technical Data,Maintenance Data
+DP_103,Installation and Handling Instructions,Technical Data,Maintenance Data
+DP_104,Cost of Maintenance and Operation,Technical Data,Maintenance Data
+DP_105,Maintenance Instructions,Technical Data,Maintenance Data
+DP_106,Maintenance Interval,Technical Data,Maintenance Data
+DP_107,Repairability,Technical Data,Maintenance Data
+DP_108,Ease of Maintenance and Refurbishment,Technical Data,Maintenance Data
+DP_109,Maintenance Log,Technical Data,Maintenance Data
+DP_110,Design for Durability,Technical Data,Protection Measures
+DP_111,Durability against Xylophage Species,Technical Data,Protection Measures
+DP_112,Corrosion Resistance,Technical Data,Protection Measures
+DP_113,Vehicle required,Logistics,Transportation & Logistic
+DP_114,Time of Delivery,Logistics,Transportation & Logistic
+DP_115,Transportation and Handling Costs,Logistics,Transportation & Logistic
+DP_116,Transport Insurance,Logistics,Transportation & Logistic
+DP_117,Storage Instruction,Logistics,Transportation & Logistic
+DP_118,Production Scrap,Logistics,Production Data
+DP_119,Manufacturing process,Logistics,Production Data
+DP_120,Location in Building or Product,Logistics,Location
+DP_121,Installation Date,Logistics,History
+DP_122,Earthquake Histories,Logistics,History
+DP_123,Fire and Fatigue Histories,Logistics,History
+DP_124,Other Geotechnical Issues,Logistics,History
+DP_125,Time Used,Logistics,History
+DP_126,MP Last Updated,Meta Data,Meta Data
+DP_127,Standard & Codes,Meta Data,Meta Data
+DP_128,Manufacturer Details,Meta Data,Meta Data
+DP_129,Suppliers Details,Meta Data,Meta Data
+DP_130,Passport ID,Meta Data,Meta Data
+DP_131,Data Source,Meta Data,Meta Data
+DP_132,Documentation,Meta Data,Meta Data
+DP_133,Status Information,Meta Data,Meta Data
+DP_134,Customer Information,Meta Data,Meta Data
+DP_135,Person in Charge,Meta Data,Meta Data
+</script>
+
+<script>
+/*** === CONFIG === ***/
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzGuMcCI0iriTIf2KVb8Jk5kd9XJTFtYQd2T7--rpbrwbwccSZYUq2Cz8txFob0gcr-/exec'; // must end with /exec
+const ORGANIZATION_DEFAULT = '';
+const EXCLUDE_ROLE = "Don't need to include";
+
+/*** === STATE === ***/
+const state = {
+  records: [],                 // {id,title,main,sub,roles:Set}
+  roles: ['Architect','Consultant','Contractor','Manufacturer','Client'],
+  selection: new Set(),
+  history: []
+};
+
+/*** === CSV PARSER === ***/
+function parseCSV(text){
+  const lines = text.replace(/\r/g,'').trim().split('\n');
+  if(!lines.length) return [];
+  const header = splitCSVLine(lines.shift()).map(x=>x.trim().toLowerCase());
+  const idx = n => header.indexOf(n);
+  const must = ['id','title','main','sub'];
+  if(!must.every(k=>idx(k)>=0)) throw new Error('CSV must have header: id,title,main,sub');
+  const out=[];
+  for(const line of lines){
+    if(!line.trim()) continue;
+    const c = splitCSVLine(line).map(x=>x.trim());
+    out.push({ id:c[idx('id')], title:c[idx('title')], main:c[idx('main')], sub:c[idx('sub')], roles:new Set() });
+  }
+  return out;
+}
+function splitCSVLine(s){
+  const out=[]; let cur='', q=false;
+  for(let i=0;i<s.length;i++){
+    const ch=s[i];
+    if(ch==='\"'){ if(q && s[i+1]==='\"'){ cur+='\"'; i++; } else q=!q; }
+    else if(ch===',' && !q){ out.push(cur); cur=''; }
+    else cur+=ch;
+  }
+  out.push(cur);
+  return out;
+}
+
+/*** === DOM HELPERS === ***/
+const $ = (sel,ctx=document)=>ctx.querySelector(sel);
+const $$ = (sel,ctx=document)=>Array.from(ctx.querySelectorAll(sel));
+const esc = s => (s??'').toString().replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
+
+/*** === RENDER: TILES (show only UNASSIGNED) === ***/
+function unassignedRecords(){
+  return state.records.filter(r=>r.roles.size===0);
+}
+function renderTiles(){
+  const root = $('#tiles'); root.innerHTML='';
+  const left = unassignedRecords();
+
+  // If everything is assigned, show the thank-you message
+  if(left.length === 0){
+    const msg = document.createElement('div');
+    msg.className = 'doneMessage';
+    msg.textContent = 'Thank you for your Time and Participation';
+    root.appendChild(msg);
+    const st = $('#status'); if (st) st.textContent = `All items assigned`;
+    return;
+  }
+
+  // Group by Main/Sub using only unassigned
+  const mains = [...new Set(left.map(r=>r.main))].sort();
+  mains.forEach((main, mi)=>{
+    const mainBox = document.createElement('div');
+    mainBox.className = 'mainBox c'+(mi%8);
+    const itemsInMain = left.filter(r=>r.main===main);
+
+    const head = document.createElement('div');
+    head.className='mainHeader';
+    head.innerHTML = `<div>${esc(main||'Uncategorized')}</div><div class="mainCount">${itemsInMain.length} items</div>`;
+    const body = document.createElement('div'); body.className='mainBody';
+    head.addEventListener('click',()=>{ body.style.display = (body.style.display==='none'?'grid':'none'); });
+    mainBox.appendChild(head);
+
+    const subs = [...new Set(itemsInMain.map(r=>r.sub))].sort();
+    subs.forEach(sub=>{
+      const subBox = document.createElement('div'); subBox.className='subBox';
+      const subHeader = document.createElement('div'); subHeader.className='subHeader';
+      const items = itemsInMain.filter(r=>r.sub===sub);
+      subHeader.innerHTML = `<div class="subTitle">${esc(sub||'—')}</div><div class="subCount">${items.length}</div>`;
+      const subBody = document.createElement('div'); subBody.className='subBody';
+      items.forEach(r=> subBody.appendChild(tileEl(r)));
+      subBox.appendChild(subHeader); subBox.appendChild(subBody);
+      body.appendChild(subBox);
+    });
+
+    mainBox.appendChild(body);
+    root.appendChild(mainBox);
+  });
+
+  const st = $('#status');
+  if (st) st.textContent = `Remaining items: ${left.length}`;
+}
+
+function tileEl(r){
+  const el=document.createElement('div'); el.className='tile'; el.draggable=true; el.dataset.id=r.id;
+  if(state.selection.has(r.id)) el.classList.add('selected');
+  el.innerHTML = `<div class="title">${esc(r.title)}</div><div class="meta">${esc(r.id)} • ${esc(r.main)} › ${esc(r.sub)}</div>`;
+  el.addEventListener('click', e=>{
+    if(e.ctrlKey||e.metaKey){
+      if(state.selection.has(r.id)) state.selection.delete(r.id); else state.selection.add(r.id);
+    }else{
+      state.selection.clear(); state.selection.add(r.id);
+    }
+    renderTiles();
+  });
+  el.addEventListener('dragstart', ()=>{
+    if(!state.selection.has(r.id)){ state.selection.clear(); state.selection.add(r.id); renderTiles(); }
+    el.classList.add('dragging');
+  });
+  el.addEventListener('dragend', ()=> el.classList.remove('dragging'));
+  return el;
+}
+
+/*** === RENDER: BUCKETS (Actors grid 2 per row) === ***/
+function renderBuckets(){
+  // Top exclude (already in DOM)
+  const ex = document.querySelector('.bucket.exclude');
+  fillBucket(ex, EXCLUDE_ROLE);
+
+  // Actor grid
+  const grid = $('#bucketGrid'); grid.innerHTML='';
+  state.roles.forEach(role=>{
+    const b=document.createElement('div'); b.className='bucket'; b.dataset.role=role;
+    b.innerHTML = `<header><h2>${esc(role)}</h2><span class="count"></span></header><div class="items"></div>`;
+    grid.appendChild(b);
+  });
+
+  // Fill counts/items
+  [EXCLUDE_ROLE, ...state.roles].forEach(role=>{
+    const target = role===EXCLUDE_ROLE ? document.querySelector('.bucket.exclude') : document.querySelector(`.bucket[data-role="${cssEscape(role)}"]`);
+    if(target) fillBucket(target, role);
+  });
+
+  // Make droppable
+  const buckets = [ex, ...$$('.bucketGrid .bucket')];
+  buckets.forEach(b=>{
+    b.addEventListener('dragover', e=>{ e.preventDefault(); b.classList.add('dragover'); });
+    b.addEventListener('dragleave', ()=> b.classList.remove('dragover'));
+    b.addEventListener('drop', ()=>{ b.classList.remove('dragover'); handleDrop(b.dataset.role || EXCLUDE_ROLE); });
+  });
+
+  autoSizeBucketRows();
+  updateBucketCounts();
+}
+function fillBucket(container, role){
+  container.dataset.role = role;
+  const items = container.querySelector('.items'); items.innerHTML='';
+  state.records.filter(r=>r.roles.has(role)).slice(0,1000).forEach(r=>{
+    const tag=document.createElement('span'); tag.className='tag'; tag.textContent=r.id; items.appendChild(tag);
+  });
+}
+function updateBucketCounts(){
+  const count = (role)=> state.records.reduce((n,r)=>n+(r.roles.has(role)?1:0),0);
+  const ex=document.querySelector('.bucket.exclude .count'); if(ex) ex.textContent = count(EXCLUDE_ROLE) ? `(${count(EXCLUDE_ROLE)})` : '';
+  state.roles.forEach(role=>{
+    const el=document.querySelector(`.bucket[data-role="${cssEscape(role)}"] .count`);
+    if(el) el.textContent = count(role) ? `(${count(role)})` : '';
+  });
+}
+function autoSizeBucketRows(){
+  const topbarH = document.querySelector('header.topbar').getBoundingClientRect().height;
+  const viewportH = window.innerHeight;
+  // available height for buckets area (rough)
+  const available = viewportH - (topbarH + 16*2) - 12 - 10 - 110;
+  const roleCount = state.roles.length;
+  const cols = 2;
+  const rows = Math.max(1, Math.ceil(roleCount / cols));
+  const gap = 8, minRow = 86;
+  let row = Math.floor((available - gap*(rows-1)) / rows);
+  row = Math.max(minRow, row);
+  document.documentElement.style.setProperty('--row-height', row+'px');
+  const grid = $('#bucketGrid'); grid.style.gridAutoRows = 'var(--row-height)';
+}
+
+/*** === ASSIGN / UNDO === ***/
+function handleDrop(role){
+  const ids = Array.from(state.selection);
+  if(!ids.length) return;
+
+  // Snapshot BEFORE
+  const before = new Map();
+  ids.forEach(id=>{
+    const r = state.records.find(x=>x.id===id);
+    before.set(id, new Set(r.roles));
+  });
+
+  // Apply
+  if(role===EXCLUDE_ROLE){
+    ids.forEach(id=>{
+      const r = state.records.find(x=>x.id===id);
+      r.roles = new Set([EXCLUDE_ROLE]);
+    });
+  }else{
+    ids.forEach(id=>{
+      const r = state.records.find(x=>x.id===id);
+      r.roles.delete(EXCLUDE_ROLE);
+      r.roles.add(role);
+    });
+  }
+
+  // Snapshot AFTER
+  const after = new Map();
+  ids.forEach(id=>{
+    const r = state.records.find(x=>x.id===id);
+    after.set(id, new Set(r.roles));
+  });
+
+  // Push to history
+  state.history.push({ ids, before, after });
+
+  // Clear selection so left list updates clearly
+  state.selection.clear();
+
+  // Update UI (both sides) & completion status
+  renderTiles();
+  renderBuckets();
+}
+function undoLast(){
+  const step = state.history.pop();
+  if(!step) return alert('Nothing to undo.');
+  step.ids.forEach(id=>{
+    const r = state.records.find(x=>x.id===id);
+    const prev = step.before.get(id) || new Set();
+    r.roles = new Set(prev);
+  });
+  state.selection.clear();
+  renderTiles();
+  renderBuckets();
+}
+
+/*** === SUBMISSION === ***/
+function getScriptUrl(){ return SCRIPT_URL; }
+
+async function checkEndpoint(){
+  const url = getScriptUrl();
+  if(!/^https:\/\/script\.google\.com\/macros\/s\/.+\/exec$/.test(url)){
+    alert('SCRIPT_URL is missing or invalid.\nPaste your Google Apps Script Web App URL (ending with /exec) into the code.'); return;
+  }
+  try{
+    const res = await fetch(url, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({ping:true}) });
+    if(res.ok) alert('Endpoint looks OK ✅');
+    else alert('Endpoint responded with status '+res.status+' (check deployment and access settings).');
+  }catch(e){
+    alert('Network error when checking endpoint.'); 
+  }
+}
+
+async function submitResults(){
+  const url = getScriptUrl();
+  if(!/^https:\/\/script\.google\.com\/macros\/s\/.+\/exec$/.test(url)){
+    alert('SCRIPT_URL is missing or invalid.\nIt must be the Google Apps Script Web App URL ending with /exec.');
+    return;
+  }
+  const payload = {
+    organization: ($('#org').value||ORGANIZATION_DEFAULT||'').trim(),
+    participant: ($('#who').value||'').trim(),
+    participantEmail: ($('#email').value||'').trim(),
+    sessionId: Math.random().toString(36).slice(2,10),
+    assignments: state.records.map(r=>({ id:r.id, title:r.title, main:r.main, sub:r.sub, roles:Array.from(r.roles) })),
+    notify: true
+  };
+  try{
+    const res = await fetch(url, {
+      method:'POST',
+      headers:{ 'Content-Type':'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload)
+    });
+    if(!res.ok){
+      const t = await res.text().catch(()=> '');
+      throw new Error('Status '+res.status+' '+t);
+    }
+    alert('Submitted! 🎉 Check your Google Sheet.');
+  }catch(err){
+    alert('Network error during submission:\n'+err.message);
+  }
+}
+
+/*** === INIT === ***/
+function init(){
+  try{
+    const csv = ($('#embeddedCSV')?.textContent||'').trim();
+    state.records = parseCSV(csv);
+  }catch(e){ alert('Failed to load embedded CSV: '+e.message); }
+
+  renderTiles();
+  renderBuckets();
+
+  // Add role
+  $('#addRoleBtn').addEventListener('click', ()=>{
+    const val = ($('#newRole').value||'').trim();
+    if(!val) return;
+    if(val===EXCLUDE_ROLE){ alert('That name is reserved.'); return; }
+    if(state.roles.includes(val)){ alert('Role already exists.'); return; }
+    state.roles.push(val);
+    $('#newRole').value='';
+    renderBuckets();
+  });
+
+  // Buttons
+  $('#checkBtn').addEventListener('click', checkEndpoint);
+  $('#submitBtn').addEventListener('click', submitResults);
+  $('#undoBtn').addEventListener('click', undoLast);
+
+  // Keyboard: Ctrl/Cmd + Z to undo
+  document.addEventListener('keydown', (e)=>{
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+      e.preventDefault();
+      undoLast();
+    }
+  });
+
+  // Keep buckets sized on resize
+  window.addEventListener('resize', autoSizeBucketRows);
+
+  // Initial status
+  const st = $('#status');
+  if (st) st.textContent = `Remaining items: ${unassignedRecords().length}`;
+}
+
+function cssEscape(s){ return (s??'').replace(/"/g,'\\"'); }
+
+window.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
