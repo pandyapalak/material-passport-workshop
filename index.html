@@ -772,7 +772,7 @@ async function submitResults(){
       const t = await res.text().catch(()=> '');
       throw new Error('Status '+res.status+' '+t);
     }
-    alert('Submitted! 🎉 Check your Google Sheet.');
+    alert('Submitted! 🎉 .');
   }catch(err){
     alert('Network error during submission:\n'+err.message);
   }
@@ -822,3 +822,4 @@ window.addEventListener('DOMContentLoaded', init);
 </script>
 </body>
 </html>
+
