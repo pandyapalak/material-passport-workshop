@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Material Passport — Drag & Assign Workshop</title>
+<style>
+  :root{
+    --bg:#ffffff; --panel:#ffffff; --muted:#f3f4f6; --card:#ffffff;
+    --ink:#111827; --ink-dim:#6b7280;
+    --accent:#2563eb; --accent-2:#10b981;
+    --danger:#b91c1c;
+    --border:#e5e7eb;
+    --shadow:0 6px 20px rgba(17,24,39,.08); --radius:16px;
+  }
+  html,body{height:100%}
+  body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;background:var(--bg);color:var(--ink)}
+  *{box-sizing:border-box}
+
+  /* TWO main columns (tiles | buckets) */
+  .app{display:grid;grid-template-columns:1fr 460px;gap:14px;padding:16px}
+
+  /* Top bar */
+  header.topbar{
+    grid-column:1/-1;display:flex;gap:12px;align-items:center;justify-content:space-between;
+    padding:10px 14px;background:#fff;border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)
+  }
+  h1{font-size:18px;margin:0;letter-spacing:.3px;font-weight:700}
+  .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .status{font-size:12px;color:#374151}
+  input[type="text"],input[type="email"]{
+    background:var(--muted);color:var(--ink);border:1px solid var(--border);border-radius:12px;padding:10px 12px
+  }
+  input::placeholder{color:var(--ink-dim)}
+  button{
+    border:1px solid var(--border);background:linear-gradient(180deg,#fff,#f8fafc);
+    color:var(--ink);padding:10px 14px;border-radius:12px;cursor:pointer;box-shadow:var(--shadow);font-weight:600
+  }
+  button.primary{background:linear-gradient(180deg,#2563eb,#1d4ed8);border-color:rgba(37,99,235,.4);color:#fff}
+  button.ghost{background:transparent;border-color:var(--border)}
+  button.small{padding:6px 10px;font-weight:600}
+  .notice{font-size:12px;color:var(--ink-dim)}
+
+  /* Panels */
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:12px;overflow:hidden}
+
+  /* Left: Tiles (Main -> Sub) */
+  .pool{display:grid;grid-template-rows:auto 1fr;gap:8px}
+  .tiles{position:relative;overflow:auto;height:calc(100vh - 210px);padding:6px;display:grid;grid-auto-rows:min-content;gap:12px}
+  .mainBox{border:1px solid var(--border);border-radius:14px;overflow:hidden;background:#fff}
+  .mainHeader{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-weight:700;font-size:13px}
+  .mainCount{font-size:12px;color:var(--ink-dim)}
+  .mainBody{padding:10px;display:grid;grid-auto-rows:min-content;gap:10px}
+
+  /* Palette per Main (header & sub shades) */
+  .c0 .mainHeader{background:#eef2ff;border-color:#c7d2fe}
+  .c0 .subBox{background:#f6f7ff;border:1px solid #e4e7ff}
+  .c1 .mainHeader{background:#ecfeff;border-color:#a5f3fc}
+  .c1 .subBox{background:#f2ffff;border:1px solid #d2fbff}
+  .c2 .mainHeader{background:#ecfdf5;border-color:#a7f3d0}
+  .c2 .subBox{background:#f3fef9;border:1px solid #cff8e4}
+  .c3 .mainHeader{background:#fff7ed;border-color:#fed7aa}
+  .c3 .subBox{background:#fffaf3;border:1px solid #ffe6c7}
+  .c4 .mainHeader{background:#fef3c7;border-color:#fde68a}
+  .c4 .subBox{background:#fff7d9;border:1px solid #fee9a9}
+  .c5 .mainHeader{background:#fae8ff;border-color:#e9d5ff}
+  .c5 .subBox{background:#fdf0ff;border:1px solid #f1ddff}
+  .c6 .mainHeader{background:#fee2e2;border-color:#fecaca}
+  .c6 .subBox{background:#fff1f1;border:1px solid #ffdddd}
+  .c7 .mainHeader{background:#e0e7ff;border-color:#c7d2fe}
+  .c7 .subBox{background:#ecf0ff;border:1px solid #dbe2ff}
+
+  .subBox{border-radius:12px;padding:8px}
+  .subHeader{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:4px 6px 8px 6px}
+  .subTitle{font-weight:700;font-size:12px}
+  .subCount{font-size:12px;color:var(--ink-dim)}
+  .subBody{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+
+  .tile{background:#fff;border:1px solid var(--border);border-radius:12px;padding:10px;cursor:grab;user-select:none;display:flex;flex-direction:column;gap:6px;position:relative}
+  .tile.dragging{opacity:.6}
+  .tile .title{font-size:13px;font-weight:700;line-height:1.2}
+  .tile .meta{font-size:11px;color:var(--ink-dim)}
+  .tile.selected{outline:2px solid var(--accent);box-shadow:0 0 0 4px rgba(37,99,235,.15) inset}
+
+  /* Right: Buckets (Actors) */
+  .buckets{display:grid;grid-template-rows:auto auto 1fr;gap:10px}
+  .bucketAdd{display:flex;gap:8px}
+  .bucketAdd input{flex:1;background:var(--muted);border:1px solid var(--border);border-radius:10px;padding:8px 10px}
+  .bucketGridWrap{overflow:hidden}
+  .bucketGrid{display:grid;gap:8px;align-content:start;grid-template-columns:repeat(2, 1fr);} /* two per row */
+  /* row height set dynamically so all actors are visible */
+  .bucket{background:#fff;border:1px dashed var(--border);border-radius:14px;display:grid;grid-template-rows:auto 1fr;min-height:var(--row-height,90px);padding:8px}
+  .bucket header{display:flex;align-items:center;justify-content:space-between}
+  .bucket h2{margin:0;font-size:13px}
+  .bucket .count{font-size:12px;color:var(--ink-dim)}
+  .bucket .items{display:flex;flex-wrap:wrap;gap:6px;overflow:auto}
+  .bucket.dragover{border-color:var(--accent-2);background:rgba(16,185,129,.08)}
+  .tag{font-size:11px;padding:4px 8px;border-radius:999px;background:rgba(37,99,235,.10);border:1px solid rgba(37,99,235,.25)}
+  .exclude{border-color:#fecaca;background:#fff5f5}
+  .exclude h2{color:#b91c1c}
+
+  @media (max-width:1100px){
+    .app{grid-template-columns:1fr}
+    .tiles{height:auto;max-height:60vh}
+    .bucketGrid{grid-template-columns:1fr} /* on small screens fall back to one per row */
+  }
+
+  .doneMessage{
+    display:flex;align-items:center;justify-content:center;
+    height:calc(100vh - 210px);
+    font-size:20px;font-weight:800;letter-spacing:.2px;color:#065f46;
+    background:#ecfdf5;border:2px dashed #a7f3d0;border-radius:14px;
+  }
+
+  /* Tooltip bubble for definitions */
+  .tooltip{
+    position:fixed;
+    max-width:320px;
+    padding:10px 12px;
+    border:1px solid var(--border);
+    border-radius:10px;
+    background:#111827;
+    color:#f9fafb;
+    font-size:12px;
+    line-height:1.35;
+    box-shadow:var(--shadow);
+    z-index:9999;
+    pointer-events:none;
+    opacity:0;
+    transition:opacity .12s ease-in-out;
+  }
+  .tooltip.show{ opacity:1; }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="row">
+    <h1>Material Passport — Drag & Assign</h1>
+    <span class="notice">Multi-select (Ctrl/⌘-click). Drag to assign. Click a Main header to collapse.</span>
+    <span id="status" class="status"></span>
+  </div>
+  <div class="row">
+    <input id="org" type="text" placeholder="Organization (optional)"/>
+    <input id="who" type="text" placeholder="Your name"/>
+    <input id="email" type="email" placeholder="Your email (optional)"/>
+    <button id="undoBtn" class="ghost">Undo</button>
+    <button id="checkBtn" class="ghost">Check Endpoint</button>
+    <button id="submitBtn" class="primary">Done & Submit</button>
+  </div>
+</header>
+
+<div class="app">
+  <!-- LEFT: tiles -->
+  <main class="panel pool">
+    <div class="tiles" id="tiles"></div>
+  </main>
+
+  <!-- RIGHT: buckets -->
+  <aside class="panel buckets">
+    <!-- special top bucket (full width) -->
+    <div class="bucket exclude" data-role="Don't need to include" style="grid-column:1 / -1;">
+      <header><h2>Don't need to include</h2><span class="count"></span></header>
+      <div class="items"></div>
+    </div>
+
+    <!-- add role -->
+    <div class="bucketAdd" style="grid-column:1 / -1;">
+      <input id="newRole" type="text" placeholder="Add an actor (e.g., Architect)"/>
+      <button id="addRoleBtn" class="small">Add</button>
+    </div>
+
+    <!-- roles grid: two per row -->
+    <div class="bucketGridWrap" style="grid-column:1 / -1;">
+      <div id="bucketGrid" class="bucketGrid"></div>
+    </div>
+  </aside>
+</div>
+
+<!-- Embedded CSV (EXACT, all 135 items). Using text/plain to avoid parser issues. -->
+<script id="embeddedCSV" type="text/plain">
+id ,title,main ,sub
+DP_001,Function,Material Identity and Properties,General  Information
+DP_002,Use,Material Identity and Properties,General  Information
+DP_003,Category,Material Identity and Properties,General  Information
+DP_004,Total Material Composition,Material Identity and Properties,Material Properties (Building Physics)
+DP_005,U-Value,Material Identity and Properties,Material Properties (Building Physics)
+DP_006,Thermal Conductivity (k-value),Material Identity and Properties,Material Properties (Building Physics)
+DP_007,Fire Resistance,Material Identity and Properties,Material Properties (Building Physics)
+DP_008,Water Tightness,Material Identity and Properties,Material Properties (Building Physics)
+DP_009,Thermal Resistence (R-value),Material Identity and Properties,Material Properties (Building Physics)
+DP_010,Acoustic Resistance,Material Identity and Properties,Material Properties (Building Physics)
+DP_011,Hygroscopicity,Material Identity and Properties,Material Properties (Building Physics)
+DP_012,Ventilation and Air Tightness,Material Identity and Properties,Material Properties (Building Physics)
+DP_013,Daylight and Illumination,Material Identity and Properties,Material Properties (Building Physics)
+DP_014,Coefficient of Thermal Expansion,Material Identity and Properties,Material Properties (Building Physics)
+DP_015,Density,Material Identity and Properties,Physical Properties
+DP_016,Weight,Material Identity and Properties,Physical Properties
+DP_017,Mass,Material Identity and Properties,Physical Properties
+DP_018,Area,Material Identity and Properties,Geometry & Dimensions
+DP_019,Volume,Material Identity and Properties,Geometry & Dimensions
+DP_020,Thickness,Material Identity and Properties,Geometry & Dimensions
+DP_021,Length,Material Identity and Properties,Geometry & Dimensions
+DP_022,Width,Material Identity and Properties,Geometry & Dimensions
+DP_023,Height,Material Identity and Properties,Geometry & Dimensions
+DP_024,Diameter,Material Identity and Properties,Geometry & Dimensions
+DP_025,Name,Material Identity and Properties,Identification
+DP_026,Image ,Material Identity and Properties,Identification
+DP_027,Colour,Material Identity and Properties,Identification
+DP_028,Material Surface,Material Identity and Properties,Identification
+DP_029,Transparency,Material Identity and Properties,Identification
+DP_030,Quantity,Material Identity and Properties,Identification
+DP_031,Drawings,Material Identity and Properties,Identification
+DP_032,QR Code,Material Identity and Properties,Identification
+DP_033,RFID Tag,Material Identity and Properties,Identification
+DP_034,Source of Material ,Material Identity and Properties,Feedstock Sources
+DP_035,Raw Material used,Material Identity and Properties,Feedstock Sources
+DP_036,Renewable / Non-renewable Content,Material Identity and Properties,Feedstock Sources
+DP_037,Reuse Potential,Circularity & End-of-Life,Reuse & Recyclable  Potential 
+DP_038,Mass of Reusable,Circularity & End-of-Life,Reuse & Recyclable  Potential 
+DP_039,Mass of Recyclable,Circularity & End-of-Life,Reuse & Recyclable  Potential 
+DP_040,Recycling Potential,Circularity & End-of-Life,Reuse & Recyclable  Potential 
+DP_041,Design for Disassembly,Circularity & End-of-Life,Design for Disassembly/ Deconstruction
+DP_042,Design for Adaptability,Circularity & End-of-Life,Design for Disassembly/ Deconstruction
+DP_043,Design for Circularity,Circularity & End-of-Life,Design for Disassembly/ Deconstruction
+DP_044,Type of connection,Circularity & End-of-Life,Disassembly Guide
+DP_045,Connected to,Circularity & End-of-Life,Disassembly Guide
+DP_046,Type of connection accessibility,Circularity & End-of-Life,Disassembly Guide
+DP_047,Material Crossing,Circularity & End-of-Life,Disassembly Guide
+DP_048,Type of form containment,Circularity & End-of-Life,Disassembly Guide
+DP_049,Disassembly Instructions,Circularity & End-of-Life,Disassembly Guide
+DP_050,Working space,Circularity & End-of-Life,Disassembly Guide
+DP_051,Disassembly tool,Circularity & End-of-Life,Disassembly Guide
+DP_052,Disassembly time,Circularity & End-of-Life,Disassembly Guide
+DP_053,Disassembly cost,Circularity & End-of-Life,Disassembly Guide
+DP_054,Disassembly revenue,Circularity & End-of-Life,Disassembly Guide
+DP_055,Disassembly energy consumption,Circularity & End-of-Life,Disassembly Guide
+DP_056,Disassembly Sequencing,Circularity & End-of-Life,Disassembly Guide
+DP_057,Disassembly Dependency,Circularity & End-of-Life,Disassembly Guide
+DP_058,End-of-Life,Circularity & End-of-Life,End-of-Life Scenario
+DP_059,Disposal Options,Circularity & End-of-Life,End-of-Life Scenario
+DP_060,Location ,Circularity & End-of-Life,End-of-Life Scenario
+DP_061,Decomposition / Degradation,Circularity & End-of-Life,End-of-Life Scenario
+DP_062,Availabbility in Future for reuse (time),Circularity & End-of-Life,End-of-Life Scenario
+DP_063,Additional Process before another lifecycle,Circularity & End-of-Life,Preprocessing
+DP_064,Costs of Recycling,Circularity & End-of-Life,Preprocessing
+DP_065,Quality checks before reusing or recycling,Circularity & End-of-Life,Preprocessing
+DP_066,GWP,Environmental Data,Environmental Impacts
+DP_067,AP,Environmental Data,Environmental Impacts
+DP_068,PEI,Environmental Data,Environmental Impacts
+DP_069,Energy Demand,Environmental Data,Environmental Impacts
+DP_070,GHG,Environmental Data,Environmental Impacts
+DP_071,Labels,Environmental Data,Sustainability & Eco Design
+DP_072,Certifications,Environmental Data,Sustainability & Eco Design
+DP_073,Social Information,Environmental Data,Sustainability & Eco Design
+DP_074,Actively Beneficial Functions,Environmental Data,Sustainability & Eco Design
+DP_075,Safety and Restrictions,Environmental Data,Sustainability & Eco Design
+DP_076,Building Identification,Building Level Data,Building Level Data
+DP_077,Building Name,Building Level Data,Building Level Data
+DP_078,Building Type,Building Level Data,Building Level Data
+DP_079,Building Location,Building Level Data,Building Level Data
+DP_080,Building Year,Building Level Data,Building Level Data
+DP_081,Building Permit Year,Building Level Data,Building Level Data
+DP_082,Owner / Administrator ,Building Level Data,Building Level Data
+DP_083,Gross Floor Area,Building Level Data,Building Level Data
+DP_084,Numbers of Floors,Building Level Data,Building Level Data
+DP_085,Digitisation Level,Building Level Data,Building Level Data
+DP_086,Compresssive Strength,Technical Data,Structural Property
+DP_087,Moment of Inertia,Technical Data,Structural Property
+DP_088,Modulus of Elasticity ,Technical Data,Structural Property
+DP_089,Resistance of deformation,Technical Data,Structural Property
+DP_090,Structural composition relationship,Technical Data,Structural Property
+DP_091,Charpy Value,Technical Data,Structural Property
+DP_092,Through Thickness Properties,Technical Data,Structural Property
+DP_093,Fatigue Properties,Technical Data,Structural Property
+DP_094,Poisson's Ratio,Technical Data,Structural Property
+DP_095,Design Analysis,Technical Data,Design Data
+DP_096,Retail price per unit,Technical Data,Economic Data
+DP_097,Manufacturing Cost,Technical Data,Economic Data
+DP_098,Lifespan,Technical Data,Performance
+DP_099,Durability,Technical Data,Performance
+DP_100,Reliability,Technical Data,Performance
+DP_101,Defects,Technical Data,Performance
+DP_102,Warranty,Technical Data,Maintenance Data
+DP_103,Installation and Handling Instructions,Technical Data,Maintenance Data
+DP_104,Cost of Maintenance and Operation,Technical Data,Maintenance Data
+DP_105,Maintenance Instructions,Technical Data,Maintenance Data
+DP_106,Maintenance Interval,Technical Data,Maintenance Data
+DP_107,Repairability,Technical Data,Maintenance Data
+DP_108,Ease of Maintenance and Refurbishment,Technical Data,Maintenance Data
+DP_109,Maintenance Log,Technical Data,Maintenance Data
+DP_110,Design for Durability,Technical Data,Protection Measures
+DP_111,Durability against Xylophage Species,Technical Data,Protection Measures
+DP_112,Corrosion Resistance,Technical Data,Protection Measures
+DP_113,Vehicle required,Logistics,Transportation & Logistic
+DP_114,Time of Delivery,Logistics,Transportation & Logistic
+DP_115,Transportation and Handling Costs,Logistics,Transportation & Logistic
+DP_116,Transport Insurance,Logistics,Transportation & Logistic
+DP_117,Storage Instruction,Logistics,Transportation & Logistic
+DP_118,Production Scrap,Logistics,Production Data
+DP_119,Manufacturing process,Logistics,Production Data
+DP_120,Location of Material,Logistics,Location
+DP_121,Installation Date,Logistics,History
+DP_122,Earthquake Histories,Logistics,History
+DP_123,Fire and Fatigue Histories,Logistics,History
+DP_124,Other Geotechnical Issues,Logistics,History
+DP_125,Time Used,Logistics,History
+DP_126,MP Last Updated,Meta Data,Meta Data
+DP_127,Standard & Codes,Meta Data,Meta Data
+DP_128,Manufacturer Details,Meta Data,Meta Data
+DP_129,Suppliers Details,Meta Data,Meta Data
+DP_130,Passport ID,Meta Data,Meta Data
+DP_131,Data Source,Meta Data,Meta Data
+DP_132,Documentation,Meta Data,Meta Data
+DP_133,Status Information,Meta Data,Meta Data
+DP_134,Customer Information,Meta Data,Meta Data
+DP_135,Person in Charge,Meta Data,Meta Data
+DP_136,Mass of Waste,Circularity & End-of-Life,End-of-Life Scenario
+</script>
+
+<script>
+/*** === CONFIG === ***/
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzL5IhZkDNxQ_-7tgMffoBXUXgEkOnZj9DUyEwJtnCXs8mroo13j7WOU3hi7fOc0-I6/exec'; // must end with /exec
+const ORGANIZATION_DEFAULT = '';
+const EXCLUDE_ROLE = "Don't need to include";
+
+/*** === OPTIONAL DEFINITIONS (fill these as you like) ===
+ * Put a short description between the quotes. Leave empty "" to show nothing.
+ */
+const DEFINITIONS = {
+  "DP_001": "It describes what the material does. E.g. Cement = binders",
+  "DP_002": "This is a general descriptor of the material’s application",
+  "DP_003": "Refers to the material classification or type within a predefined taxonomy",
+  "DP_004": "",
+  "DP_005": "Rate of heat transfer through a material",
+  "DP_006": "Rate at which heat passes through a material",
+  "DP_007": "Material’s ability to withstand fire or prevent its spread over a defined period",
+  "DP_008": "Material’s ability to prevent water penetration or leakage",
+  "DP_009": "Material’s ability to regulate or resist heat transfer",
+  "DP_010": "Material's ability to block the sound ",
+  "DP_011": "Material’s tendency to absorb moisture from the surrounding environment",
+  "DP_012": "Material’s influence on airflow and sealing performance within a building envelope or assembly",
+  "DP_013": "Material's ability to transmit, reflect, or diffuse light",
+  "DP_014": "The rate at which a material expands or contracts with temperature changes",
+  "DP_015": "",
+  "DP_016": "",
+  "DP_017": "",
+  "DP_018": "",
+  "DP_019": "",
+  "DP_020": "",
+  "DP_021": "",
+  "DP_022": "",
+  "DP_023": "",
+  "DP_024": "",
+  "DP_025": "",
+  "DP_026": "JPG, PNG or anyother format",
+  "DP_027": "",
+  "DP_028": "",
+  "DP_029": "Visual and optical characteristic that defines how much light passes through a material.",
+  "DP_030": "",
+  "DP_031": "Link of the drawing/Model of the Material",
+  "DP_032": "QR Code of a Material Passport itself",
+  "DP_033": "An RFID tag (Radio-Frequency Identification tag) is a small device used to store and send information wirelessly using radio waves.",
+  "DP_034": "",
+  "DP_035": "",
+  "DP_036": "",
+  "DP_037": "Feasibility of a material being reused in the same or similar application after its current use ends",
+  "DP_038": "The quantity (by weight) of the material that can be reused without significant processing at the end of its current lifecycle",
+  "DP_039": "The quantity (by weight) of the material that is recyclable",
+  "DP_040": "Feasibility of a material being recycled for same or different application, after its current use ends",
+  "DP_041": "",
+  "DP_042": "Material planned to allow for future modifications or reconfigurations.",
+  "DP_043": "How the material or product is intentionally designed to enable reuse, recycling, refurbishing, or remanufacturing, aligning with circular economy principles",
+  "DP_044": "Describes how the material is attached to other building components",
+  "DP_045": "Refers to which elements does it is connected to",
+  "DP_046": "Describes how easily the connection can be accessed and undone during disassembly",
+  "DP_047": "Refers to the material overlapping with other material",
+  "DP_048": "Describes how a material is physically held or shaped in place with in an assembly",
+  "DP_049": "Step-by-step guidance on how to safely and efficiently remove a material",
+  "DP_050": "Describes the physical space required to access, repair disassemble, or remove a material/component",
+  "DP_051": "Describes the specific equipment or tools required to dismantle, disconnect, or extract a material or component without causing damage",
+  "DP_052": "",
+  "DP_053": "",
+  "DP_054": "Financial gain that may be obtained from selling or reusing or recycling",
+  "DP_055": "",
+  "DP_056": "Step-by-step order in which all materials must be removed from a structure",
+  "DP_057": "Shows the requirement to remove certain elements or layer of material before a specific material/component can be disassembled",
+  "DP_058": "Describes the expected fate of a material once it reaches the end of its useful life in a building or product",
+  "DP_059": "Describes the recommended methods for disposing of the material at the end of its service life",
+  "DP_060": "The geographic location of the endpoint of material’s lifecycle (Landfill, Incineration etc.)",
+  "DP_061": "Describe material’s ability to naturally break down over time",
+  "DP_062": "Describes the estimated point in time when a material/component will become available for reuse/recycle/recovery",
+  "DP_063": "",
+  "DP_064": "",
+  "DP_065": "",
+  "DP_066": "GWP (Global Warming Potential) is a measure of how much heat a greenhouse gas traps in the atmosphere compared to carbon dioxide.",
+  "DP_067": "AP (Acidification Potential) is a measure of how emissions  contribute to acidification of soil and water, which can harm ecosystems and buildings.",
+  "DP_068": "PEI (Primary Energy Intensity) is primary energy demand related to a functional unit",
+  "DP_069": "Descibes the total energy required throughout the lifecycle of a material",
+  "DP_070": "Measures the Greenhouse Gas Emissions throughout the lifecycle of a material",
+  "DP_071": "Describes if it has labels like EU Ecolabel, Energy Star, etc.",
+  "DP_072": "Describes the certifications like Cradle to Cradle, etc.",
+  "DP_073": "Describes material’s impact on people and communities across its lifecycle",
+  "DP_074": "Material behaviors or properties that go beyond neutrality to positively contribute to environmental, social, or building performance goals (e.g.-Air Purification, etc.)",
+  "DP_075": "Describes health-related risks or hazards associated with the handling, installation, use, or disposal of the material",
+  "DP_076": "Unique ID for the building where the material is used or documented",
+  "DP_077": "",
+  "DP_078": "",
+  "DP_079": "",
+  "DP_080": "",
+  "DP_081": "",
+  "DP_082": "",
+  "DP_083": "",
+  "DP_084": "",
+  "DP_085": "Design available for building (e.g.-2D, BIM Model, Digital Twin, etc.)",
+  "DP_086": "Amount of load, a material can withstand without failing in compression.",
+  "DP_087": "A measure of how resistant an object is to changes in its rotational motion",
+  "DP_088": "Describes a material’s stiffness",
+  "DP_089": "Refers to how well a material maintains its shape under mechanical stress, without bending, stretching, or compressing.",
+  "DP_090": "Describes, if the material acts as an structural element",
+  "DP_091": "It is a measure of a material’s toughness - its ability to absorb energy during fracture at high strain rates",
+  "DP_092": "Describe a material’s mechanical performance in the direction perpendicular to its surface plane",
+  "DP_093": "Describe how a material behaves under repeated or cyclic loading",
+  "DP_094": "Fundamental elastic property describing the ratio of transverse strain to axial strain in a material when it is stretched or compressed:",
+  "DP_095": "Engineering evaluations and simulations performed to validate how a material or component performs under expected conditions",
+  "DP_096": "",
+  "DP_097": "",
+  "DP_098": "Estimated number of years a material is expected to perform its intended function before requiring replacement or losing integrity",
+  "DP_099": "Material’s ability to withstand wear, pressure, or environmental conditions over time without significant degradation",
+  "DP_100": "Probability that a material will perform its intended function consistently over a specified period and under defined conditions",
+  "DP_101": "Shows, if material has any warranty and from whom",
+  "DP_102": "",
+  "DP_103": "",
+  "DP_104": "",
+  "DP_105": "Provide guidance on how to care for, clean, repair, replace or inspect the material during its use phase",
+  "DP_106": "",
+  "DP_107": "Estimates how easy and feasible it is to restore or renovate the material or component to functional condition after damage or failure",
+  "DP_108": "Describes how simple and practical it is to refurbish or renew or replace or maintain the material ",
+  "DP_109": "Record of actual maintenance activities performed over the lifespan of the material",
+  "DP_110": "Measures or strategies implemented to extend the material’s life, such as surface treatments, coatings",
+  "DP_111": "Descibes resistance against biological organisms that consume wood and cellulose-based materials",
+  "DP_112": "",
+  "DP_113": "Describes vehicles required for the transportation of material from one place to another",
+  "DP_114": "Demolised material from store house or new materials from the factory to the required place ",
+  "DP_115": "",
+  "DP_116": "Refers to coverage for damage, loss, or theft of materials during transportation",
+  "DP_117": "Recommended guidelines for storing the material",
+  "DP_118": "Waste of raw material n the production process",
+  "DP_119": "Method or technique used to produce the material",
+  "DP_120": "Location of the material within structure (can be location in BIM models) or can be cordinates of recyling unit or storage palce",
+  "DP_121": "Can be installation date or casting date for cast in situ materials like concrete",
+  "DP_122": "",
+  "DP_123": "",
+  "DP_124": "",
+  "DP_125": "The actual duration for which material was used (Can be a list with where it is used, maintenance records, etc.)",
+  "DP_126": "Updation Date and Time for Material Passport (MP) data itself",
+  "DP_127": "Describes standard and codes according to which  the material is manufactured",
+  "DP_128": "",
+  "DP_129": "",
+  "DP_130": "Unique ID for the Material Passport",
+  "DP_131": "From where the information in the material passport comes? Can be make for all the category",
+  "DP_132": "Describes broadly to any supporting files, certificates, declarations, manuals, or technical documents linked to the material",
+  "DP_133": "Refers to the current state of the material itself",
+  "DP_134": "Contact details for obtaining the materials",
+  "DP_135": "Contact person for the specific material category information",
+  "DP_136": "The quantity (by weight) of the material that is waste"
+};
+
+/*** === STATE === ***/
+const state = {
+  records: [],                 // {id,title,main,sub,roles:Set}
+  roles: ['Architect','Consultant','Contractor','Manufacturer','Client'],
+  selection: new Set(),
+  history: [],
+  colorMap: new Map()          // ✅ stable color per Main
+};
+
+/*** === CSV PARSER === ***/
+function parseCSV(text){
+  const lines = text.replace(/\r/g,'').trim().split('\n');
+  if(!lines.length) return [];
+  const header = splitCSVLine(lines.shift()).map(x=>x.trim().toLowerCase());
+  const idx = n => header.indexOf(n);
+  const must = ['id','title','main','sub'];
+  if(!must.every(k=>idx(k)>=0)) throw new Error('CSV must have header: id,title,main,sub');
+  const out=[];
+  for(const line of lines){
+    if(!line.trim()) continue;
+    const c = splitCSVLine(line).map(x=>x.trim());
+    const rec = { id:c[idx('id')], title:c[idx('title')], main:c[idx('main')], sub:c[idx('sub')], roles:new Set() };
+    out.push(rec);
+  }
+  return out;
+}
+function splitCSVLine(s){
+  const out=[]; let cur='', q=false;
+  for(let i=0;i<s.length;i++){
+    const ch=s[i];
+    if(ch==='\"'){ if(q && s[i+1]==='\"'){ cur+='\"'; i++; } else q=!q; }
+    else if(ch===',' && !q){ out.push(cur); cur=''; }
+    else cur+=ch;
+  }
+  out.push(cur);
+  return out;
+}
+
+/*** === DOM HELPERS === ***/
+const $ = (sel,ctx=document)=>ctx.querySelector(sel);
+const $$ = (sel,ctx=document)=>Array.from(ctx.querySelectorAll(sel));
+const esc = s => (s??'').toString().replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
+
+/*** === COLOR MAP (lock colors per Main) === */
+function buildColorMap(){
+  const mains = [...new Set(state.records.map(r => r.main))].sort();
+  state.colorMap = new Map();
+  mains.forEach((m, i) => state.colorMap.set(m, i % 8)); // maps Main -> c0..c7
+}
+
+/*** === TOOLTIP (0.5s delayed) === ***/
+let tooltipEl;
+function ensureTooltip(){
+  if(!tooltipEl){
+    tooltipEl = document.createElement('div');
+    tooltipEl.className = 'tooltip';
+    document.body.appendChild(tooltipEl);
+  }
+}
+function showTooltip(text, x, y){
+  ensureTooltip();
+  tooltipEl.textContent = text;
+  const pad = 12;
+  const maxW = 320;
+  tooltipEl.style.left = Math.min(window.innerWidth - maxW - pad, x + 14) + 'px';
+  tooltipEl.style.top  = Math.min(window.innerHeight - 40, y + 14) + 'px';
+  tooltipEl.classList.add('show');
+}
+function hideTooltip(){
+  if(tooltipEl) tooltipEl.classList.remove('show');
+}
+
+/*** === RENDER: TILES (show only UNASSIGNED) === ***/
+function unassignedRecords(){
+  return state.records.filter(r=>r.roles.size===0);
+}
+function renderTiles(){
+  const root = $('#tiles'); root.innerHTML='';
+  const left = unassignedRecords();
+
+  if(left.length === 0){
+    const msg = document.createElement('div');
+    msg.className = 'doneMessage';
+    msg.textContent = 'Thank you for your Time and Participation';
+    root.appendChild(msg);
+    const st = $('#status'); if (st) st.textContent = `All items assigned`;
+    return;
+  }
+
+  const mains = [...new Set(left.map(r=>r.main))].sort();
+  mains.forEach((main)=>{
+    const mainBox = document.createElement('div');
+    const colorIdx = state.colorMap.get(main) ?? 0;   // ✅ stable per Main
+    mainBox.className = 'mainBox c' + colorIdx;
+
+    const itemsInMain = left.filter(r=>r.main===main);
+
+    const head = document.createElement('div');
+    head.className='mainHeader';
+    head.innerHTML = `<div>${esc(main||'Uncategorized')}</div><div class="mainCount">${itemsInMain.length} items</div>`;
+    const body = document.createElement('div'); body.className='mainBody';
+    head.addEventListener('click',()=>{ body.style.display = (body.style.display==='none'?'grid':'none'); });
+    mainBox.appendChild(head);
+
+    const subs = [...new Set(itemsInMain.map(r=>r.sub))].sort();
+    subs.forEach(sub=>{
+      const subBox = document.createElement('div'); subBox.className='subBox';
+      const subHeader = document.createElement('div'); subHeader.className='subHeader';
+      const items = itemsInMain.filter(r=>r.sub===sub);
+      subHeader.innerHTML = `<div class="subTitle">${esc(sub||'—')}</div><div class="subCount">${items.length}</div>`;
+      const subBody = document.createElement('div'); subBody.className='subBody';
+      items.forEach(r=> subBody.appendChild(tileEl(r)));
+      subBox.appendChild(subHeader); subBox.appendChild(subBody);
+      body.appendChild(subBox);
+    });
+
+    mainBox.appendChild(body);
+    root.appendChild(mainBox);
+  });
+
+  const st = $('#status');
+  if (st) st.textContent = `Remaining items: ${left.length}`;
+}
+
+function tileEl(r){
+  const el=document.createElement('div'); el.className='tile'; el.draggable=true; el.dataset.id=r.id;
+  if(state.selection.has(r.id)) el.classList.add('selected');
+  el.innerHTML = `<div class="title">${esc(r.title)}</div><div class="meta">${esc(r.id)} • ${esc(r.main)} › ${esc(r.sub)}</div>`;
+
+  const defText = (DEFINITIONS[r.id] || "").trim();
+  if(defText){
+    let hoverTimer = null;
+    let lastMouse = {x:0,y:0};
+    el.addEventListener('mousemove', (e)=>{ lastMouse = {x:e.clientX, y:e.clientY}; });
+    el.addEventListener('mouseenter', ()=>{
+      hoverTimer = setTimeout(()=> showTooltip(defText, lastMouse.x, lastMouse.y), 500);
+    });
+    el.addEventListener('mouseleave', ()=>{
+      if(hoverTimer) clearTimeout(hoverTimer);
+      hoverTimer = null;
+      hideTooltip();
+    });
+  }
+
+  el.addEventListener('click', e=>{
+    if(e.ctrlKey||e.metaKey){
+      if(state.selection.has(r.id)) state.selection.delete(r.id); else state.selection.add(r.id);
+    }else{
+      state.selection.clear(); state.selection.add(r.id);
+    }
+    renderTiles();
+  });
+  el.addEventListener('dragstart', ()=>{
+    if(!state.selection.has(r.id)){ state.selection.clear(); state.selection.add(r.id); renderTiles(); }
+    el.classList.add('dragging');
+    hideTooltip();
+  });
+  el.addEventListener('dragend', ()=> el.classList.remove('dragging'));
+  return el;
+}
+
+/*** === RENDER: BUCKETS (Actors grid 2 per row) === ***/
+function renderBuckets(){
+  const ex = document.querySelector('.bucket.exclude');
+  fillBucket(ex, EXCLUDE_ROLE);
+
+  const grid = $('#bucketGrid'); grid.innerHTML='';
+  state.roles.forEach(role=>{
+    const b=document.createElement('div'); b.className='bucket'; b.dataset.role=role;
+    b.innerHTML = `<header><h2>${esc(role)}</h2><span class="count"></span></header><div class="items"></div>`;
+    grid.appendChild(b);
+  });
+
+  [EXCLUDE_ROLE, ...state.roles].forEach(role=>{
+    const target = role===EXCLUDE_ROLE ? document.querySelector('.bucket.exclude') : document.querySelector(`.bucket[data-role="${cssEscape(role)}"]`);
+    if(target) fillBucket(target, role);
+  });
+
+  const buckets = [ex, ...$$('.bucketGrid .bucket')];
+  buckets.forEach(b=>{
+    b.addEventListener('dragover', e=>{ e.preventDefault(); b.classList.add('dragover'); });
+    b.addEventListener('dragleave', ()=> b.classList.remove('dragover'));
+    b.addEventListener('drop', ()=>{ b.classList.remove('dragover'); handleDrop(b.dataset.role || EXCLUDE_ROLE); });
+  });
+
+  autoSizeBucketRows();
+  updateBucketCounts();
+}
+function fillBucket(container, role){
+  container.dataset.role = role;
+  const items = container.querySelector('.items'); items.innerHTML='';
+  state.records.filter(r=>r.roles.has(role)).slice(0,1000).forEach(r=>{
+    const tag=document.createElement('span'); tag.className='tag'; tag.textContent=r.id; items.appendChild(tag);
+  });
+}
+function updateBucketCounts(){
+  const count = (role)=> state.records.reduce((n,r)=>n+(r.roles.has(role)?1:0),0);
+  const ex=document.querySelector('.bucket.exclude .count'); if(ex) ex.textContent = count(EXCLUDE_ROLE) ? `(${count(EXCLUDE_ROLE)})` : '';
+  state.roles.forEach(role=>{
+    const el=document.querySelector(`.bucket[data-role="${cssEscape(role)}"] .count`);
+    if(el) el.textContent = count(role) ? `(${count(role)})` : '';
+  });
+}
+function autoSizeBucketRows(){
+  const topbarH = document.querySelector('header.topbar').getBoundingClientRect().height;
+  const viewportH = window.innerHeight;
+  const available = viewportH - (topbarH + 16*2) - 12 - 10 - 110;
+  const roleCount = state.roles.length;
+  const cols = 2;
+  const rows = Math.max(1, Math.ceil(roleCount / cols));
+  const gap = 8, minRow = 86;
+  let row = Math.floor((available - gap*(rows-1)) / rows);
+  row = Math.max(minRow, row);
+  document.documentElement.style.setProperty('--row-height', row+'px');
+  const grid = $('#bucketGrid'); grid.style.gridAutoRows = 'var(--row-height)';
+}
+
+/*** === ASSIGN / UNDO === ***/
+function handleDrop(role){
+  const ids = Array.from(state.selection);
+  if(!ids.length) return;
+
+  const before = new Map();
+  ids.forEach(id=>{
+    const r = state.records.find(x=>x.id===id);
+    before.set(id, new Set(r.roles));
+  });
+
+  if(role===EXCLUDE_ROLE){
+    ids.forEach(id=>{
+      const r = state.records.find(x=>x.id===id);
+      r.roles = new Set([EXCLUDE_ROLE]);
+    });
+  }else{
+    ids.forEach(id=>{
+      const r = state.records.find(x=>x.id===id);
+      r.roles.delete(EXCLUDE_ROLE);
+      r.roles.add(role);
+    });
+  }
+
+  const after = new Map();
+  ids.forEach(id=>{
+    const r = state.records.find(x=>x.id===id);
+    after.set(id, new Set(r.roles));
+  });
+
+  state.history.push({ ids, before, after });
+  state.selection.clear();
+
+  renderTiles();
+  renderBuckets();
+  hideTooltip();
+}
+function undoLast(){
+  const step = state.history.pop();
+  if(!step) return alert('Nothing to undo.');
+  step.ids.forEach(id=>{
+    const r = state.records.find(x=>x.id===id);
+    const prev = step.before.get(id) || new Set();
+    r.roles = new Set(prev);
+  });
+  state.selection.clear();
+  renderTiles();
+  renderBuckets();
+  hideTooltip();
+}
+
+/*** === SUBMISSION === ***/
+function getScriptUrl(){ return SCRIPT_URL; }
+
+async function checkEndpoint(){
+  const url = getScriptUrl();
+  if(!/^https:\/\/script\.google\.com\/macros\/s\/.+\/exec$/.test(url)){
+    alert('SCRIPT_URL is missing or invalid.\nPaste your Google Apps Script Web App URL (ending with /exec) into the code.'); return;
+  }
+  try{
+    const res = await fetch(url, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({ping:true}) });
+    if(res.ok) alert('Endpoint looks OK ✅');
+    else alert('Endpoint responded with status '+res.status+' (check deployment and access settings).');
+  }catch(e){
+    alert('Network error when checking endpoint.'); 
+  }
+}
+
+async function submitResults(){
+  const url = getScriptUrl();
+  if(!/^https:\/\/script\.google\.com\/macros\/s\/.+\/exec$/.test(url)){
+    alert('SCRIPT_URL is missing or invalid.\nIt must be the Google Apps Script Web App URL ending with /exec.');
+    return;
+  }
+  const payload = {
+    organization: ($('#org').value||ORGANIZATION_DEFAULT||'').trim(),
+    participant: ($('#who').value||'').trim(),
+    participantEmail: ($('#email').value||'').trim(),
+    sessionId: Math.random().toString(36).slice(2,10),
+    assignments: state.records.map(r=>({ id:r.id, title:r.title, main:r.main, sub:r.sub, roles:Array.from(r.roles) })),
+    notify: true
+  };
+  try{
+    const res = await fetch(url, {
+      method:'POST',
+      headers:{ 'Content-Type':'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload)
+    });
+    if(!res.ok){
+      const t = await res.text().catch(()=> '');
+      throw new Error('Status '+res.status+' '+t);
+    }
+    alert('Submitted! 🎉');
+  }catch(err){
+    alert('Network error during submission:\n'+err.message);
+  }
+}
+
+/*** === INIT === ***/
+function init(){
+  try{
+    const csv = ($('#embeddedCSV')?.textContent||'').trim();
+    state.records = parseCSV(csv);
+    buildColorMap(); // ✅ lock a color index per Main once
+  }catch(e){ alert('Failed to load embedded CSV: '+e.message); }
+
+  renderTiles();
+  renderBuckets();
+
+  $('#addRoleBtn').addEventListener('click', ()=>{
+    const val = ($('#newRole').value||'').trim();
+    if(!val) return;
+    if(val===EXCLUDE_ROLE){ alert('That name is reserved.'); return; }
+    if(state.roles.includes(val)){ alert('Role already exists.'); return; }
+    state.roles.push(val);
+    $('#newRole').value='';
+    renderBuckets();
+  });
+
+  $('#checkBtn').addEventListener('click', checkEndpoint);
+  $('#submitBtn').addEventListener('click', submitResults);
+  $('#undoBtn').addEventListener('click', undoLast);
+
+  document.addEventListener('keydown', (e)=>{
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+      e.preventDefault();
+      undoLast();
+    }
+  });
+
+  window.addEventListener('resize', autoSizeBucketRows);
+
+  const st = $('#status');
+  if (st) st.textContent = `Remaining items: ${unassignedRecords().length}`;
+}
+
+function cssEscape(s){ return (s??'').replace(/"/g,'\\"'); }
+
+window.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
+
+
+
+
+
