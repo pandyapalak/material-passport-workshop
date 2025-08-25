@@ -617,10 +617,12 @@ function tileEl(r){
   // DEFINITION tooltip (0.5s delay) — only if text exists in DEFINITIONS
   const defText = (DEFINITIONS[r.id] || "").trim();
   if(defText){
-    el.addEventListener('mousemove', (e)=>{ lastMouse = {x:e.clientX, y:e.clientY}; });
-    el.addEventListener('mouseenter', ()=>{
+    // ✅ capture position on mouseenter too (not only on mousemove)
+    el.addEventListener('mouseenter', (e)=>{
+      lastMouse = {x:e.clientX, y:e.clientY};
       hoverTimer = setTimeout(()=> showTooltip(defText, lastMouse.x, lastMouse.y), 500); // 0.5s
     });
+    el.addEventListener('mousemove', (e)=>{ lastMouse = {x:e.clientX, y:e.clientY}; });
     el.addEventListener('mouseleave', ()=>{
       if(hoverTimer) clearTimeout(hoverTimer);
       hoverTimer = null;
@@ -629,7 +631,7 @@ function tileEl(r){
   }
 
   el.addEventListener('click', e=>{
-    // 🔧 Fix: cancel any pending tooltip + hide it on click
+    // cancel any pending tooltip + hide it on click
     if(hoverTimer) clearTimeout(hoverTimer);
     hoverTimer = null;
     hideTooltip();
