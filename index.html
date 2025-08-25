@@ -39,7 +39,7 @@
   button.primary{background:linear-gradient(180deg,#2563eb,#1d4ed8);border-color:rgba(37,99,235,.4);color:#fff}
   button.ghost{background:transparent;border-color:var(--border)}
   button.small{padding:6px 10px;font-weight:600}
-  .notice{font-size:12px;color:var(--ink-dim)}
+  .notice{font-size:12px;color:#var(--ink-dim)}
 
   /* Panels */
   .panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:12px;overflow:hidden}
@@ -87,22 +87,29 @@
   .bucketAdd{display:flex;gap:8px}
   .bucketAdd input{flex:1;background:var(--muted);border:1px solid var(--border);border-radius:10px;padding:8px 10px}
   .bucketGridWrap{overflow:hidden}
-  .bucketGrid{display:grid;gap:8px;align-content:start;grid-template-columns:repeat(2, 1fr);} /* two per row */
-  /* row height set dynamically so all actors are visible */
+
+  /* special buckets pair in one row */
+  .bucketPair{display:grid;grid-template-columns:1fr 1fr;gap:8px}
   .bucket{background:#fff;border:1px dashed var(--border);border-radius:14px;display:grid;grid-template-rows:auto 1fr;min-height:var(--row-height,90px);padding:8px}
   .bucket header{display:flex;align-items:center;justify-content:space-between}
   .bucket h2{margin:0;font-size:13px}
-  .bucket .count{font-size:12px;color:var(--ink-dim)}
+  .bucket .count{font-size:12px;color:#6b7280}
   .bucket .items{display:flex;flex-wrap:wrap;gap:6px;overflow:auto}
   .bucket.dragover{border-color:var(--accent-2);background:rgba(16,185,129,.08)}
   .tag{font-size:11px;padding:4px 8px;border-radius:999px;background:rgba(37,99,235,.10);border:1px solid rgba(37,99,235,.25)}
   .exclude{border-color:#fecaca;background:#fff5f5}
   .exclude h2{color:#b91c1c}
+  .complex{border-color:#fde68a;background:#fffbeb}
+  .complex h2{color:#92400e}
 
+  /* roles grid: two per row */
+  .bucketGrid{display:grid;gap:8px;align-content:start;grid-template-columns:repeat(2, 1fr);}
+  /* row height set dynamically so all actors are visible */
   @media (max-width:1100px){
     .app{grid-template-columns:1fr}
     .tiles{height:auto;max-height:60vh}
-    .bucketGrid{grid-template-columns:1fr} /* on small screens fall back to one per row */
+    .bucketGrid{grid-template-columns:1fr}
+    .bucketPair{grid-template-columns:1fr}
   }
 
   .doneMessage{
@@ -157,10 +164,16 @@
 
   <!-- RIGHT: buckets -->
   <aside class="panel buckets">
-    <!-- special top bucket (full width) -->
-    <div class="bucket exclude" data-role="Don't need to include" style="grid-column:1 / -1;">
-      <header><h2>Don't need to include</h2><span class="count"></span></header>
-      <div class="items"></div>
+    <!-- special buckets in one row (half width each) -->
+    <div class="bucketPair" style="grid-column:1 / -1;">
+      <div class="bucket exclude" data-role="Don't need to include">
+        <header><h2>Don't need to include</h2><span class="count"></span></header>
+        <div class="items"></div>
+      </div>
+      <div class="bucket complex" data-role="Too Complicated to include">
+        <header><h2>Too Complicated to include</h2><span class="count"></span></header>
+        <div class="items"></div>
+      </div>
     </div>
 
     <!-- add role -->
@@ -176,7 +189,7 @@
   </aside>
 </div>
 
-<!-- Embedded CSV (EXACT, all 135 items). Using text/plain to avoid parser issues. -->
+<!-- Embedded CSV (EXACT, all 136 items). Using text/plain to avoid parser issues. -->
 <script id="embeddedCSV" type="text/plain">
 id ,title,main ,sub
 DP_001,Function,Material Identity and Properties,General  Information
@@ -322,6 +335,7 @@ DP_136,Mass of Waste,Circularity & End-of-Life,End-of-Life Scenario
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzL5IhZkDNxQ_-7tgMffoBXUXgEkOnZj9DUyEwJtnCXs8mroo13j7WOU3hi7fOc0-I6/exec'; // must end with /exec
 const ORGANIZATION_DEFAULT = '';
 const EXCLUDE_ROLE = "Don't need to include";
+const COMPLEX_ROLE = "Too Complicated to include";
 
 /*** === OPTIONAL DEFINITIONS (fill these as you like) ===
  * Put a short description between the quotes. Leave empty "" to show nothing.
@@ -545,6 +559,7 @@ function renderTiles(){
   const root = $('#tiles'); root.innerHTML='';
   const left = unassignedRecords();
 
+  // If everything is assigned, show the thank-you message
   if(left.length === 0){
     const msg = document.createElement('div');
     msg.className = 'doneMessage';
@@ -554,6 +569,7 @@ function renderTiles(){
     return;
   }
 
+  // Group by Main/Sub using only unassigned
   const mains = [...new Set(left.map(r=>r.main))].sort();
   mains.forEach((main)=>{
     const mainBox = document.createElement('div');
@@ -594,13 +610,15 @@ function tileEl(r){
   if(state.selection.has(r.id)) el.classList.add('selected');
   el.innerHTML = `<div class="title">${esc(r.title)}</div><div class="meta">${esc(r.id)} • ${esc(r.main)} › ${esc(r.sub)}</div>`;
 
+  // DEFINITION tooltip (0.5s delay) — only if text exists in DEFINITIONS
   const defText = (DEFINITIONS[r.id] || "").trim();
   if(defText){
     let hoverTimer = null;
     let lastMouse = {x:0,y:0};
+
     el.addEventListener('mousemove', (e)=>{ lastMouse = {x:e.clientX, y:e.clientY}; });
     el.addEventListener('mouseenter', ()=>{
-      hoverTimer = setTimeout(()=> showTooltip(defText, lastMouse.x, lastMouse.y), 500);
+      hoverTimer = setTimeout(()=> showTooltip(defText, lastMouse.x, lastMouse.y), 500); // 0.5s
     });
     el.addEventListener('mouseleave', ()=>{
       if(hoverTimer) clearTimeout(hoverTimer);
@@ -620,7 +638,7 @@ function tileEl(r){
   el.addEventListener('dragstart', ()=>{
     if(!state.selection.has(r.id)){ state.selection.clear(); state.selection.add(r.id); renderTiles(); }
     el.classList.add('dragging');
-    hideTooltip();
+    hideTooltip(); // hide tooltip when starting drag
   });
   el.addEventListener('dragend', ()=> el.classList.remove('dragging'));
   return el;
@@ -628,9 +646,13 @@ function tileEl(r){
 
 /*** === RENDER: BUCKETS (Actors grid 2 per row) === ***/
 function renderBuckets(){
+  // special pair
   const ex = document.querySelector('.bucket.exclude');
+  const cx = document.querySelector('.bucket.complex');
   fillBucket(ex, EXCLUDE_ROLE);
+  fillBucket(cx, COMPLEX_ROLE);
 
+  // Actor grid
   const grid = $('#bucketGrid'); grid.innerHTML='';
   state.roles.forEach(role=>{
     const b=document.createElement('div'); b.className='bucket'; b.dataset.role=role;
@@ -638,22 +660,28 @@ function renderBuckets(){
     grid.appendChild(b);
   });
 
-  [EXCLUDE_ROLE, ...state.roles].forEach(role=>{
-    const target = role===EXCLUDE_ROLE ? document.querySelector('.bucket.exclude') : document.querySelector(`.bucket[data-role="${cssEscape(role)}"]`);
+  // Fill counts/items
+  [EXCLUDE_ROLE, COMPLEX_ROLE, ...state.roles].forEach(role=>{
+    const target =
+      role===EXCLUDE_ROLE ? ex :
+      role===COMPLEX_ROLE ? cx :
+      document.querySelector(`.bucket[data-role="${cssEscape(role)}"]`);
     if(target) fillBucket(target, role);
   });
 
-  const buckets = [ex, ...$$('.bucketGrid .bucket')];
+  // Make droppable
+  const buckets = [ex, cx, ...$$('.bucketGrid .bucket')];
   buckets.forEach(b=>{
     b.addEventListener('dragover', e=>{ e.preventDefault(); b.classList.add('dragover'); });
     b.addEventListener('dragleave', ()=> b.classList.remove('dragover'));
-    b.addEventListener('drop', ()=>{ b.classList.remove('dragover'); handleDrop(b.dataset.role || EXCLUDE_ROLE); });
+    b.addEventListener('drop', ()=>{ b.classList.remove('dragover'); handleDrop(b.dataset.role); });
   });
 
   autoSizeBucketRows();
   updateBucketCounts();
 }
 function fillBucket(container, role){
+  if(!container) return;
   container.dataset.role = role;
   const items = container.querySelector('.items'); items.innerHTML='';
   state.records.filter(r=>r.roles.has(role)).slice(0,1000).forEach(r=>{
@@ -663,6 +691,7 @@ function fillBucket(container, role){
 function updateBucketCounts(){
   const count = (role)=> state.records.reduce((n,r)=>n+(r.roles.has(role)?1:0),0);
   const ex=document.querySelector('.bucket.exclude .count'); if(ex) ex.textContent = count(EXCLUDE_ROLE) ? `(${count(EXCLUDE_ROLE)})` : '';
+  const cx=document.querySelector('.bucket.complex .count'); if(cx) cx.textContent = count(COMPLEX_ROLE) ? `(${count(COMPLEX_ROLE)})` : '';
   state.roles.forEach(role=>{
     const el=document.querySelector(`.bucket[data-role="${cssEscape(role)}"] .count`);
     if(el) el.textContent = count(role) ? `(${count(role)})` : '';
@@ -671,6 +700,7 @@ function updateBucketCounts(){
 function autoSizeBucketRows(){
   const topbarH = document.querySelector('header.topbar').getBoundingClientRect().height;
   const viewportH = window.innerHeight;
+  // available height for buckets area (rough)
   const available = viewportH - (topbarH + 16*2) - 12 - 10 - 110;
   const roleCount = state.roles.length;
   const cols = 2;
@@ -687,34 +717,42 @@ function handleDrop(role){
   const ids = Array.from(state.selection);
   if(!ids.length) return;
 
+  // Snapshot BEFORE
   const before = new Map();
   ids.forEach(id=>{
     const r = state.records.find(x=>x.id===id);
     before.set(id, new Set(r.roles));
   });
 
-  if(role===EXCLUDE_ROLE){
+  // Apply
+  if(role===EXCLUDE_ROLE || role===COMPLEX_ROLE){
     ids.forEach(id=>{
       const r = state.records.find(x=>x.id===id);
-      r.roles = new Set([EXCLUDE_ROLE]);
+      r.roles = new Set([role]); // put exclusively into that special bucket
     });
   }else{
     ids.forEach(id=>{
       const r = state.records.find(x=>x.id===id);
       r.roles.delete(EXCLUDE_ROLE);
+      r.roles.delete(COMPLEX_ROLE);
       r.roles.add(role);
     });
   }
 
+  // Snapshot AFTER
   const after = new Map();
   ids.forEach(id=>{
     const r = state.records.find(x=>x.id===id);
     after.set(id, new Set(r.roles));
   });
 
+  // Push to history
   state.history.push({ ids, before, after });
+
+  // Clear selection
   state.selection.clear();
 
+  // Update UI
   renderTiles();
   renderBuckets();
   hideTooltip();
@@ -791,20 +829,23 @@ function init(){
   renderTiles();
   renderBuckets();
 
+  // Add role
   $('#addRoleBtn').addEventListener('click', ()=>{
     const val = ($('#newRole').value||'').trim();
     if(!val) return;
-    if(val===EXCLUDE_ROLE){ alert('That name is reserved.'); return; }
+    if(val===EXCLUDE_ROLE || val===COMPLEX_ROLE){ alert('That name is reserved.'); return; }
     if(state.roles.includes(val)){ alert('Role already exists.'); return; }
     state.roles.push(val);
     $('#newRole').value='';
     renderBuckets();
   });
 
+  // Buttons
   $('#checkBtn').addEventListener('click', checkEndpoint);
   $('#submitBtn').addEventListener('click', submitResults);
   $('#undoBtn').addEventListener('click', undoLast);
 
+  // Keyboard: Ctrl/Cmd + Z to undo
   document.addEventListener('keydown', (e)=>{
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
       e.preventDefault();
@@ -812,8 +853,10 @@ function init(){
     }
   });
 
+  // Keep buckets sized on resize
   window.addEventListener('resize', autoSizeBucketRows);
 
+  // Initial status
   const st = $('#status');
   if (st) st.textContent = `Remaining items: ${unassignedRecords().length}`;
 }
@@ -824,8 +867,3 @@ window.addEventListener('DOMContentLoaded', init);
 </script>
 </body>
 </html>
-
-
-
-
-
