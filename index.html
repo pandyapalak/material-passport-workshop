@@ -482,7 +482,8 @@ const DEFINITIONS = {
 /*** === STATE === ***/
 const state = {
   records: [],                 // {id,title,main,sub,roles:Set}
-  roles: ['Architect','Environmental Consultant','Engineers','Suppliers','Government Authorities','Contractor','Manufacturer','Client'],
+  roles: ['Architect','Environmental Consultant','Engines','Suppliers','Government Authorities','Contractor','Manufacturer','Client'] // (typo fixed in your own copy if needed)
+    .map(r => r === 'Engines' ? 'Engineers' : r),
   selection: new Set(),
   history: [],
   colorMap: new Map()          // ✅ stable color per Main
@@ -529,7 +530,7 @@ function buildColorMap(){
   mains.forEach((m, i) => state.colorMap.set(m, i % 8)); // maps Main -> c0..c7
 }
 
-  // 🔁 Global pointer fallback so tooltips never use (0,0)
+/* === GLOBAL POINTER (prevents 0,0 tooltip) === */
 let lastPointer = { x: 0, y: 0 };
 document.addEventListener('mousemove', (e) => {
   lastPointer = { x: e.clientX, y: e.clientY };
@@ -544,35 +545,19 @@ function ensureTooltip(){
     document.body.appendChild(tooltipEl);
   }
 }
-  
-/*** === TOOLTIP (0.5s delayed) === ***/
-let tooltipEl;
-function ensureTooltip(){
-  if(!tooltipEl){
-    tooltipEl = document.createElement('div');
-    tooltipEl.className = 'tooltip';
-    document.body.appendChild(tooltipEl);
-  }
-}
-
 function showTooltip(text, x, y){
   ensureTooltip();
   const pad = 12;
   const maxW = 320;
-
-  // ✅ Fallback to the last known global pointer if x/y are 0 or undefined
   const px = (typeof x === 'number' && x > 0) ? x : lastPointer.x;
   const py = (typeof y === 'number' && y > 0) ? y : lastPointer.y;
-
-  // If we still don't have a real pointer position, wait (prevents 0,0 flash)
-  if (px === 0 && py === 0) return;
+  if (px === 0 && py === 0) return; // no pointer info yet, skip showing
 
   tooltipEl.textContent = text;
-  tooltipEl.style.left = Math.min(window.innerWidth - maxW - pad, px + 14) + 'px';
-  tooltipEl.style.top  = Math.min(window.innerHeight - 40,   py + 14) + 'px';
+  tooltipEl.style.left = Math.min(window.innerWidth - maxW - pad, Math.max(pad, px + 14)) + 'px';
+  tooltipEl.style.top  = Math.min(window.innerHeight - 40,   Math.max(pad, py + 14)) + 'px';
   tooltipEl.classList.add('show');
 }
-
 function hideTooltip(){
   if(tooltipEl) tooltipEl.classList.remove('show');
 }
@@ -585,7 +570,6 @@ function renderTiles(){
   const root = $('#tiles'); root.innerHTML='';
   const left = unassignedRecords();
 
-  // If everything is assigned, show the thank-you message
   if(left.length === 0){
     const msg = document.createElement('div');
     msg.className = 'doneMessage';
@@ -595,11 +579,10 @@ function renderTiles(){
     return;
   }
 
-  // Group by Main/Sub using only unassigned
   const mains = [...new Set(left.map(r=>r.main))].sort();
   mains.forEach((main)=>{
     const mainBox = document.createElement('div');
-    const colorIdx = state.colorMap.get(main) ?? 0;   // ✅ stable per Main
+    const colorIdx = state.colorMap.get(main) ?? 0;
     mainBox.className = 'mainBox c' + colorIdx;
 
     const itemsInMain = left.filter(r=>r.main===main);
@@ -636,19 +619,19 @@ function tileEl(r){
   if(state.selection.has(r.id)) el.classList.add('selected');
   el.innerHTML = `<div class="title">${esc(r.title)}</div><div class="meta">${esc(r.id)} • ${esc(r.main)} › ${esc(r.sub)}</div>`;
 
-  // Keep these in scope so we can cancel on click as well
   let hoverTimer = null;
   let lastMouse = {x:0,y:0};
 
-  // DEFINITION tooltip (0.5s delay) — only if text exists in DEFINITIONS
   const defText = (DEFINITIONS[r.id] || "").trim();
   if(defText){
-    // ✅ capture position on mouseenter too (not only on mousemove)
     el.addEventListener('mouseenter', (e)=>{
-      lastMouse = {x:e.clientX, y:e.clientY};
-      hoverTimer = setTimeout(()=> showTooltip(defText, lastMouse.x, lastMouse.y), 500); // 0.5s
+      lastMouse = {x:e.clientX||0, y:e.clientY||0};
+      const rect = el.getBoundingClientRect();
+      const fx = lastMouse.x || (rect.left + rect.width/2);
+      const fy = lastMouse.y || (rect.top  + rect.height/2);
+      hoverTimer = setTimeout(()=> showTooltip(defText, fx, fy), 500);
     });
-    el.addEventListener('mousemove', (e)=>{ lastMouse = {x:e.clientX, y:e.clientY}; });
+    el.addEventListener('mousemove', (e)=>{ lastMouse = {x:e.clientX||0, y:e.clientY||0}; });
     el.addEventListener('mouseleave', ()=>{
       if(hoverTimer) clearTimeout(hoverTimer);
       hoverTimer = null;
@@ -657,7 +640,6 @@ function tileEl(r){
   }
 
   el.addEventListener('click', e=>{
-    // cancel any pending tooltip + hide it on click
     if(hoverTimer) clearTimeout(hoverTimer);
     hoverTimer = null;
     hideTooltip();
@@ -673,7 +655,7 @@ function tileEl(r){
   el.addEventListener('dragstart', ()=>{
     if(!state.selection.has(r.id)){ state.selection.clear(); state.selection.add(r.id); renderTiles(); }
     el.classList.add('dragging');
-    hideTooltip(); // hide tooltip when starting drag
+    hideTooltip();
   });
   el.addEventListener('dragend', ()=> el.classList.remove('dragging'));
   return el;
@@ -681,13 +663,11 @@ function tileEl(r){
 
 /*** === RENDER: BUCKETS (Actors grid 2 per row) === ***/
 function renderBuckets(){
-  // special pair
   const ex = document.querySelector('.bucket.exclude');
   const cx = document.querySelector('.bucket.complex');
   fillBucket(ex, EXCLUDE_ROLE);
   fillBucket(cx, COMPLEX_ROLE);
 
-  // Actor grid
   const grid = $('#bucketGrid'); grid.innerHTML='';
   state.roles.forEach(role=>{
     const b=document.createElement('div'); b.className='bucket'; b.dataset.role=role;
@@ -695,7 +675,6 @@ function renderBuckets(){
     grid.appendChild(b);
   });
 
-  // Fill counts/items
   [EXCLUDE_ROLE, COMPLEX_ROLE, ...state.roles].forEach(role=>{
     const target =
       role===EXCLUDE_ROLE ? ex :
@@ -704,7 +683,6 @@ function renderBuckets(){
     if(target) fillBucket(target, role);
   });
 
-  // Make droppable
   const buckets = [ex, cx, ...$$('.bucketGrid .bucket')];
   buckets.forEach(b=>{
     b.addEventListener('dragover', e=>{ e.preventDefault(); b.classList.add('dragover'); });
@@ -735,7 +713,6 @@ function updateBucketCounts(){
 function autoSizeBucketRows(){
   const topbarH = document.querySelector('header.topbar').getBoundingClientRect().height;
   const viewportH = window.innerHeight;
-  // available height for buckets area (rough)
   const available = viewportH - (topbarH + 16*2) - 12 - 10 - 110;
   const roleCount = state.roles.length;
   const cols = 2;
@@ -752,18 +729,16 @@ function handleDrop(role){
   const ids = Array.from(state.selection);
   if(!ids.length) return;
 
-  // Snapshot BEFORE
   const before = new Map();
   ids.forEach(id=>{
     const r = state.records.find(x=>x.id===id);
     before.set(id, new Set(r.roles));
   });
 
-  // Apply
   if(role===EXCLUDE_ROLE || role===COMPLEX_ROLE){
     ids.forEach(id=>{
       const r = state.records.find(x=>x.id===id);
-      r.roles = new Set([role]); // put exclusively into that special bucket
+      r.roles = new Set([role]);
     });
   }else{
     ids.forEach(id=>{
@@ -774,20 +749,16 @@ function handleDrop(role){
     });
   }
 
-  // Snapshot AFTER
   const after = new Map();
   ids.forEach(id=>{
     const r = state.records.find(x=>x.id===id);
     after.set(id, new Set(r.roles));
   });
 
-  // Push to history
   state.history.push({ ids, before, after });
 
-  // Clear selection
   state.selection.clear();
 
-  // Update UI
   renderTiles();
   renderBuckets();
   hideTooltip();
@@ -858,13 +829,12 @@ function init(){
   try{
     const csv = ($('#embeddedCSV')?.textContent||'').trim();
     state.records = parseCSV(csv);
-    buildColorMap(); // ✅ lock a color index per Main once
+    buildColorMap();
   }catch(e){ alert('Failed to load embedded CSV: '+e.message); }
 
   renderTiles();
   renderBuckets();
 
-  // Add role
   $('#addRoleBtn').addEventListener('click', ()=>{
     const val = ($('#newRole').value||'').trim();
     if(!val) return;
@@ -875,12 +845,10 @@ function init(){
     renderBuckets();
   });
 
-  // Buttons
   $('#checkBtn').addEventListener('click', checkEndpoint);
   $('#submitBtn').addEventListener('click', submitResults);
   $('#undoBtn').addEventListener('click', undoLast);
 
-  // Keyboard: Ctrl/Cmd + Z to undo
   document.addEventListener('keydown', (e)=>{
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
       e.preventDefault();
@@ -888,10 +856,8 @@ function init(){
     }
   });
 
-  // Keep buckets sized on resize
   window.addEventListener('resize', autoSizeBucketRows);
 
-  // Initial status
   const st = $('#status');
   if (st) st.textContent = `Remaining items: ${unassignedRecords().length}`;
 }
