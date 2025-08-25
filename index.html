@@ -610,12 +610,13 @@ function tileEl(r){
   if(state.selection.has(r.id)) el.classList.add('selected');
   el.innerHTML = `<div class="title">${esc(r.title)}</div><div class="meta">${esc(r.id)} • ${esc(r.main)} › ${esc(r.sub)}</div>`;
 
+  // Keep these in scope so we can cancel on click as well
+  let hoverTimer = null;
+  let lastMouse = {x:0,y:0};
+
   // DEFINITION tooltip (0.5s delay) — only if text exists in DEFINITIONS
   const defText = (DEFINITIONS[r.id] || "").trim();
   if(defText){
-    let hoverTimer = null;
-    let lastMouse = {x:0,y:0};
-
     el.addEventListener('mousemove', (e)=>{ lastMouse = {x:e.clientX, y:e.clientY}; });
     el.addEventListener('mouseenter', ()=>{
       hoverTimer = setTimeout(()=> showTooltip(defText, lastMouse.x, lastMouse.y), 500); // 0.5s
@@ -628,6 +629,11 @@ function tileEl(r){
   }
 
   el.addEventListener('click', e=>{
+    // 🔧 Fix: cancel any pending tooltip + hide it on click
+    if(hoverTimer) clearTimeout(hoverTimer);
+    hoverTimer = null;
+    hideTooltip();
+
     if(e.ctrlKey||e.metaKey){
       if(state.selection.has(r.id)) state.selection.delete(r.id); else state.selection.add(r.id);
     }else{
@@ -635,6 +641,7 @@ function tileEl(r){
     }
     renderTiles();
   });
+
   el.addEventListener('dragstart', ()=>{
     if(!state.selection.has(r.id)){ state.selection.clear(); state.selection.add(r.id); renderTiles(); }
     el.classList.add('dragging');
