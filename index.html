@@ -812,14 +812,16 @@ async function submitResults(){
   }
 
   const payload = {
-    organization: ($('#org').value||ORGANIZATION_DEFAULT||'').trim(),
-    participantPost: post, // <-- new field
-    participant: ($('#who').value||'').trim(),
-    participantEmail: ($('#email').value||'').trim(),
-    sessionId: Math.random().toString(36).slice(2,10),
-    assignments: state.records.map(r=>({ id:r.id, title:r.title, main:r.main, sub:r.sub, roles:Array.from(r.roles) })),
-    notify: true
-  };
+  organization: ($('#org').value||ORGANIZATION_DEFAULT||'').trim(),
+  participantPost: post,                 // keep your current key
+  post: post,                            // alias for common server scripts
+  participantRole: post,                 // another common name
+  participant: ($('#who').value||'').trim(),
+  participantEmail: ($('#email').value||'').trim(),
+  sessionId: Math.random().toString(36).slice(2,10),
+  assignments: state.records.map(r=>({ id:r.id, title:r.title, main:r.main, sub:r.sub, roles:Array.from(r.roles) })),
+  notify: true
+};
   try{
     const res = await fetch(url, {
       method:'POST',
