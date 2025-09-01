@@ -813,9 +813,11 @@ async function submitResults(){
 
   const payload = {
   organization: ($('#org').value||ORGANIZATION_DEFAULT||'').trim(),
-  participantPost: post,                 // keep your current key
-  post: post,                            // alias for common server scripts
-  participantRole: post,                 // another common name
+  participantPost: post,          // keep
+  post: post,                     // keep
+  participantRole: post,          // keep
+  "Post/Role": post,              // NEW: exact header-style key
+  "Participant Post/Role": post,  // NEW: alternate header some scripts use
   participant: ($('#who').value||'').trim(),
   participantEmail: ($('#email').value||'').trim(),
   sessionId: Math.random().toString(36).slice(2,10),
