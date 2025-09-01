@@ -148,6 +148,8 @@
   </div>
   <div class="row">
     <input id="org" type="text" placeholder="Organization (optional)"/>
+    <!-- NEW required Post/Role field -->
+    <input id="post" type="text" placeholder="Post/Role (required)" required aria-required="true"/>
     <input id="who" type="text" placeholder="Your name"/>
     <input id="email" type="email" placeholder="Your email (optional)"/>
     <button id="undoBtn" class="ghost">Undo</button>
@@ -482,7 +484,7 @@ const DEFINITIONS = {
 /*** === STATE === ***/
 const state = {
   records: [],                 // {id,title,main,sub,roles:Set}
-  roles: ['Architect','Environmental Consultant','Engines','Suppliers','Government Authorities','Contractor','Manufacturer','Client'] // (typo fixed in your own copy if needed)
+  roles: ['Architect','Environmental Consultant','Engines','Suppliers','Government Authorities','Contractor','Manufacturer','Client']
     .map(r => r === 'Engines' ? 'Engineers' : r),
   selection: new Set(),
   history: [],
@@ -800,8 +802,18 @@ async function submitResults(){
     alert('SCRIPT_URL is missing or invalid.\nIt must be the Google Apps Script Web App URL ending with /exec.');
     return;
   }
+
+  // NEW: enforce required Post/Role
+  const post = ($('#post').value||'').trim();
+  if(!post){
+    alert('Please enter your Post/Role before submitting.');
+    $('#post').focus();
+    return;
+  }
+
   const payload = {
     organization: ($('#org').value||ORGANIZATION_DEFAULT||'').trim(),
+    participantPost: post, // <-- new field
     participant: ($('#who').value||'').trim(),
     participantEmail: ($('#email').value||'').trim(),
     sessionId: Math.random().toString(36).slice(2,10),
