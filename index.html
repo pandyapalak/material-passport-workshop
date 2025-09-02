@@ -814,18 +814,21 @@ async function submitResults(){
   const payload = {
   organization: ($('#org').value||ORGANIZATION_DEFAULT||'').trim(),
 
-  // Preferred key
-  "Position/Role": post,
+  // Primary (most scripts will make this exact header)
+  "Position Role": post,
 
-  // Safe aliases in case the script normalizes or expects different headers
-  "Position Role": post,   // slash-removed version most scripts auto-create
-  Position: post,
-  Role: post,
+  // Common normalizations some Apps Scripts use
+  PositionRole: post,
+  positionRole: post,
+  "Position_Role": post,
 
-  // Keep your previous ones too, in case the sheet/script already uses them
+  // Keep your earlier keys for backward compatibility
   participantPost: post,
   post: post,
   participantRole: post,
+
+  // (If you really want the slash too, keep it—backend may ignore it)
+  "Position/Role": post,
 
   participant: ($('#who').value||'').trim(),
   participantEmail: ($('#email').value||'').trim(),
@@ -833,6 +836,7 @@ async function submitResults(){
   assignments: state.records.map(r=>({ id:r.id, title:r.title, main:r.main, sub:r.sub, roles:Array.from(r.roles) })),
   notify: true
 };
+
 
   try{
     const res = await fetch(url, {
