@@ -788,7 +788,11 @@ async function checkEndpoint(){
     alert('SCRIPT_URL is missing or invalid.\nPaste your Google Apps Script Web App URL (ending with /exec) into the code.'); return;
   }
   try{
-    const res = await fetch(url, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({ping:true}) });
+    const res = await fetch(url, {
+  method:'POST',
+  headers:{ 'Content-Type':'application/json' },  // change from text/plain
+  body: JSON.stringify(payload)
+});
     if(res.ok) alert('Endpoint looks OK ✅');
     else alert('Endpoint responded with status '+res.status+' (check deployment and access settings).');
   }catch(e){
@@ -814,20 +818,20 @@ async function submitResults(){
   const payload = {
   organization: ($('#org').value||ORGANIZATION_DEFAULT||'').trim(),
 
-  // Primary (most scripts will make this exact header)
-  "Position Role": post,
+  // Simple, commonly whitelisted keys
+  role: post,
+  position: post,
 
-  // Common normalizations some Apps Scripts use
+  // Space/underscore/camel variants (auto-header generators)
+  "Position Role": post,
+  "Position_Role": post,
   PositionRole: post,
   positionRole: post,
-  "Position_Role": post,
 
-  // Keep your earlier keys for backward compatibility
+  // Your previous keys for backward compatibility
   participantPost: post,
   post: post,
   participantRole: post,
-
-  // (If you really want the slash too, keep it—backend may ignore it)
   "Position/Role": post,
 
   participant: ($('#who').value||'').trim(),
@@ -836,7 +840,6 @@ async function submitResults(){
   assignments: state.records.map(r=>({ id:r.id, title:r.title, main:r.main, sub:r.sub, roles:Array.from(r.roles) })),
   notify: true
 };
-
 
   try{
     const res = await fetch(url, {
