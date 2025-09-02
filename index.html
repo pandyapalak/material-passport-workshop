@@ -149,7 +149,7 @@
   <div class="row">
     <input id="org" type="text" placeholder="Organization (optional)"/>
     <!-- NEW required Post/Role field -->
-    <input id="post" type="text" placeholder="Post/Role (required)" required aria-required="true"/>
+    <input id="post" type="text" placeholder="Position/Role (required)" required aria-required="true"/>
     <input id="who" type="text" placeholder="Your name"/>
     <input id="email" type="email" placeholder="Your email (optional)"/>
     <button id="undoBtn" class="ghost">Undo</button>
@@ -813,17 +813,27 @@ async function submitResults(){
 
   const payload = {
   organization: ($('#org').value||ORGANIZATION_DEFAULT||'').trim(),
-  participantPost: post,          // keep
-  post: post,                     // keep
-  participantRole: post,          // keep
-  "Post/Role": post,              // NEW: exact header-style key
-  "Participant Post/Role": post,  // NEW: alternate header some scripts use
+
+  // Preferred key
+  "Position/Role": post,
+
+  // Safe aliases in case the script normalizes or expects different headers
+  "Position Role": post,   // slash-removed version most scripts auto-create
+  Position: post,
+  Role: post,
+
+  // Keep your previous ones too, in case the sheet/script already uses them
+  participantPost: post,
+  post: post,
+  participantRole: post,
+
   participant: ($('#who').value||'').trim(),
   participantEmail: ($('#email').value||'').trim(),
   sessionId: Math.random().toString(36).slice(2,10),
   assignments: state.records.map(r=>({ id:r.id, title:r.title, main:r.main, sub:r.sub, roles:Array.from(r.roles) })),
   notify: true
 };
+
   try{
     const res = await fetch(url, {
       method:'POST',
