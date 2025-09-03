@@ -699,10 +699,28 @@ function fillBucket(container, role){
   if(!container) return;
   container.dataset.role = role;
   const items = container.querySelector('.items'); items.innerHTML='';
-  state.records.filter(r=>r.roles.has(role)).slice(0,1000).forEach(r=>{
-    const tag=document.createElement('span'); tag.className='tag'; tag.textContent=r.id; items.appendChild(tag);
-  });
+  state.records
+    .filter(r=>r.roles.has(role))
+    .slice(0,1000)
+    .forEach(r=>{
+      const tag = document.createElement('span');
+      tag.className = 'tag';
+      tag.textContent = r.id;
+      tag.title = `Currently: ${[...r.roles].join(', ')}`;
+
+      // NEW: make tags draggable so we can re-assign to more actors
+      tag.draggable = true;
+      tag.dataset.id = r.id;
+      tag.addEventListener('dragstart', ()=>{
+        state.selection.clear();
+        state.selection.add(r.id);   // pick this one record
+      });
+      tag.addEventListener('dragend', ()=>{ /* no-op */ });
+
+      items.appendChild(tag);
+    });
 }
+
 function updateBucketCounts(){
   const count = (role)=> state.records.reduce((n,r)=>n+(r.roles.has(role)?1:0),0);
   const ex=document.querySelector('.bucket.exclude .count'); if(ex) ex.textContent = count(EXCLUDE_ROLE) ? `(${count(EXCLUDE_ROLE)})` : '';
